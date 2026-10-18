@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: financial-shield
+    description: Demo account and simulated purchases for the Financial Safety Shield MVP
 paths:
   /healthz:
     get:
@@ -24,6 +26,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [financial-shield]
+      summary: Get the demo dashboard
+      description: Returns a demo account, virtual card, and recent simulated purchase attempts
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "503":
+          description: MongoDB is not configured or is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /purchases/simulate:
+    post:
+      operationId: createPurchaseSimulation
+      tags: [financial-shield]
+      summary: Record a simulated purchase attempt
+      description: Saves a purchase simulation without charging money or contacting a bank
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseSimulationInput"
+      responses:
+        "201":
+          description: Purchase simulation recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseSimulation"
+        "400":
+          description: Invalid purchase simulation input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: MongoDB is not configured or is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +85,77 @@ components:
           type: string
       required:
         - status
+    DemoAccount:
+      type: object
+      properties:
+        displayName:
+          type: string
+        availableBalance:
+          type: number
+        currency:
+          type: string
+      required: [displayName, availableBalance, currency]
+    DemoVirtualCard:
+      type: object
+      properties:
+        holderName:
+          type: string
+        lastFour:
+          type: string
+        status:
+          type: string
+      required: [holderName, lastFour, status]
+    PurchaseSimulation:
+      type: object
+      properties:
+        id:
+          type: string
+        merchantName:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [simulated]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, merchantName, amount, currency, status, createdAt]
+    Dashboard:
+      type: object
+      properties:
+        account:
+          $ref: "#/components/schemas/DemoAccount"
+        virtualCard:
+          $ref: "#/components/schemas/DemoVirtualCard"
+        protectionEnabled:
+          type: boolean
+        recentSimulations:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseSimulation"
+      required: [account, virtualCard, protectionEnabled, recentSimulations]
+    PurchaseSimulationInput:
+      type: object
+      properties:
+        merchantName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 10000
+        currency:
+          type: string
+          enum: [KWD]
+      required: [merchantName, amount, currency]
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
 
