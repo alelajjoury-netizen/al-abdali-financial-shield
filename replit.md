@@ -44,6 +44,7 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 - Never put secrets in code. Use Replit Secrets.
 - Do not implement Open Banking, wearable integrations, behavioral AI, or real payments.
 - Read this file before each implementation step.
+- Do not create or run new automated tests or propose test tasks. The user has stopped that work and wants the running app and preview instead.
 
 ## Gotchas
 
