@@ -48,6 +48,9 @@ export default function HomePage() {
   const { data: dashboard, isLoading, isError, refetch } = useGetDashboard({
     query: { queryKey: getGetDashboardQueryKey(), staleTime: 30_000, refetchInterval: 30_000 },
   });
+  // React Query retains cached data after a failed refresh. Do not present
+  // that account/card snapshot as a currently confirmed financial overview.
+  const overview = isError ? undefined : dashboard;
   const createSimulation = useCreatePurchaseSimulation({
     mutation: {
       onSuccess: (purchase) => {
@@ -159,7 +162,7 @@ export default function HomePage() {
         <section className="welcome-row" aria-label="ترحيب">
           <div>
             <div className="eyebrow">لوحة حسابك</div>
-            <h1 data-testid="text-welcome">مرحباً، {isLoading ? '...' : (dashboard?.account.displayName || 'بك')}</h1>
+            <h1 data-testid="text-welcome">مرحباً، {isLoading ? '...' : (overview?.account.displayName || 'بك')}</h1>
             <p>نظرة هادئة على حسابك ومحاولات الشراء التجريبية.</p>
           </div>
           <div className="today-date">{new Intl.DateTimeFormat('ar-KW', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</div>
@@ -168,9 +171,14 @@ export default function HomePage() {
         <section className="overview-grid" aria-label="ملخص الحساب والبطاقة">
           <article className="panel balance-panel">
             <div className="section-kicker"><span>الرصيد المتاح</span><CircleHelp size={14} /></div>
-            {isLoading ? <div className="skeleton" style={{ height: 48, width: '58%', marginTop: 20 }} /> :
+            {isLoading ? <div className="skeleton" style={{ height: 48, width: '58%', marginTop: 20 }} /> : overview ?
               <div className="balance-number" data-testid="text-available-balance">
-                <small>{currencyLabel(dashboard?.account.currency || 'KWD')}</small>{new Intl.NumberFormat('ar-KW', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(dashboard?.account.availableBalance ?? 0)}
+                <small>{currencyLabel(overview.account.currency)}</small>{new Intl.NumberFormat('ar-KW', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(overview.account.availableBalance)}
+              </div> :
+              <div className="overview-unavailable" role="status" data-testid="message-balance-unavailable">
+                <strong>الرصيد غير متاح</strong>
+                <p>تعذر تحميل بيانات الحساب أو تأكيد الرصيد الحالي.</p>
+                <button className="retry-button" type="button" data-testid="button-retry-account" onClick={() => refetch()}>إعادة المحاولة</button>
               </div>}
             <div className="balance-caption">رصيد عرض تجريبي — لا توجد أموال فعلية في الحساب</div>
           </article>
@@ -179,13 +187,16 @@ export default function HomePage() {
             <div className="card-top">
               <div>
                 <div className="card-label">بطاقتك الافتراضية</div>
-                <div className="card-holder">{isLoading ? 'جارٍ التحميل' : dashboard?.virtualCard.holderName || '—'}</div>
+                {overview && <div className="card-holder">{overview.virtualCard.holderName}</div>}
               </div>
               <div className="card-chip" aria-hidden="true" />
             </div>
-            <div className="card-number" dir="ltr">•••• &nbsp;•••• &nbsp;•••• &nbsp;{dashboard?.virtualCard.lastFour || '••••'}</div>
+            {overview ? <div className="card-number" dir="ltr">•••• &nbsp;•••• &nbsp;•••• &nbsp;{overview.virtualCard.lastFour}</div> :
+              <div className="overview-unavailable" role="status" data-testid="message-card-unavailable">
+                {isLoading ? 'جارٍ تحميل بيانات البطاقة' : 'بيانات البطاقة غير متاحة'}
+              </div>}
             <div className="card-bottom">
-              <span className="card-status">{dashboard?.virtualCard.status ? readableCardStatus(dashboard.virtualCard.status) : 'بطاقة تجريبية'}</span>
+              {overview && <span className="card-status">{readableCardStatus(overview.virtualCard.status)}</span>}
               <span className="network-mark">DEMO</span>
             </div>
           </article>

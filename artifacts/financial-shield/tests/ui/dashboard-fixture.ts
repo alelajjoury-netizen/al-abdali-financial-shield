@@ -4,6 +4,7 @@ import type { Dashboard, ProtectionSettings } from '@workspace/api-client-react'
 /** Read-only API boundary: no server, database, or shared demo data. */
 class DashboardApi {
   reads = 0;
+  dashboardUnavailable = false;
   unexpectedRequests: string[] = [];
   dashboard: Dashboard = {
     account: { displayName: 'حساب اختبار أول', availableBalance: 12345.678, currency: 'KWD' },
@@ -25,6 +26,9 @@ export const test = base.extend<{ api: DashboardApi }>({
       const path = new URL(request.url()).pathname;
       if (request.method() === 'GET' && path === '/api/dashboard') {
         api.reads++;
+        if (api.dashboardUnavailable) {
+          return route.fulfill({ status: 503, json: { error: 'Dashboard unavailable' } });
+        }
         return route.fulfill({ json: api.dashboard });
       }
       if (request.method() === 'GET' && path === '/api/protection-settings') {

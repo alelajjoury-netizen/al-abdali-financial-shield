@@ -41,6 +41,10 @@ pnpm --filter @workspace/financial-shield test:ui protection-settings.spec.ts
 
 ### Dashboard account and card
 
+- HTTP 503 on initial load shows unavailable balance/card states instead of a
+  fabricated zero or card. Explicit retry restores confirmed values.
+- A failed polling refresh hides cached account/card details until recovery;
+  retry replaces them with new data, including a genuine confirmed zero balance.
 - A dedicated read-only fixture intercepts all API requests with private in-memory
   account/card data; unexpected requests, including writes, fail the test.
 - The real dashboard polling replaces account name, balance, card holder, last
