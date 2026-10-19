@@ -18,6 +18,15 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * Checks MongoDB connectivity and a read-only ping within a 2-second deadline. Does not expose connection details. The independent /healthz liveness check is unaffected.
+ * @summary Database readiness check
+ */
+export const ReadinessCheckResponse = zod.object({
+  "status": zod.enum(['ready'])
+})
+
+
+/**
  * Returns a demo account, virtual card, and recent simulated purchase attempts
  * @summary Get the demo dashboard
  */

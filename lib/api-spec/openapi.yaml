@@ -26,6 +26,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /readyz:
+    get:
+      operationId: readinessCheck
+      tags: [health]
+      summary: Database readiness check
+      description: Checks MongoDB connectivity and a read-only ping within a 2-second deadline. Does not expose connection details. The independent /healthz liveness check is unaffected.
+      responses:
+        "200":
+          description: Database is reachable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessReady"
+        "503":
+          description: Database is unavailable or the readiness deadline expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessUnavailable"
   /dashboard:
     get:
       operationId: getDashboard
@@ -229,6 +248,20 @@ components:
           type: string
       required:
         - status
+    ReadinessReady:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+    ReadinessUnavailable:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [unavailable]
     DemoAccount:
       type: object
       properties:

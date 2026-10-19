@@ -31,6 +31,28 @@ export interface HealthStatus {
   status: string;
 }
 
+export type ReadinessReadyStatus = typeof ReadinessReadyStatus[keyof typeof ReadinessReadyStatus];
+
+
+export const ReadinessReadyStatus = {
+  ready: 'ready',
+} as const;
+
+export interface ReadinessReady {
+  status: ReadinessReadyStatus;
+}
+
+export type ReadinessUnavailableStatus = typeof ReadinessUnavailableStatus[keyof typeof ReadinessUnavailableStatus];
+
+
+export const ReadinessUnavailableStatus = {
+  unavailable: 'unavailable',
+} as const;
+
+export interface ReadinessUnavailable {
+  status: ReadinessUnavailableStatus;
+}
+
 export interface DemoAccount {
   displayName: string;
   availableBalance: number;
