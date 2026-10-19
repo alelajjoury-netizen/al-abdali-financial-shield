@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Check, ShieldCheck } from 'lucide-react';
 import {
   useGetProtectionSettings, useUpdateProtectionSettings,
   getGetProtectionSettingsQueryKey, getGetDashboardQueryKey,
@@ -60,7 +61,7 @@ export function ProtectionSettingsPanel() {
 
   return (
     <section className="panel settings-panel" aria-labelledby="protection-settings-heading" data-testid="panel-protection-settings">
-      <h2 className="panel-heading" id="protection-settings-heading">إعدادات الحماية العاطفية</h2>
+      <h2 className="panel-heading" id="protection-settings-heading"><ShieldCheck size={18} /> إعدادات الحماية العاطفية</h2>
       <p className="panel-subheading">اضبط الدرع وساعات الحظر اليومية ومدة التهدئة. الإعدادات مشتركة للحساب التجريبي.</p>
       {!values ? (
         settings.isError ? (
@@ -101,7 +102,7 @@ export function ProtectionSettingsPanel() {
             {error && <div className="form-message error" role="alert" data-testid="message-settings-error">{error}</div>}
             {success && <div className="form-message success" role="status" data-testid="message-settings-success">تم حفظ إعدادات الحماية. ستبقى محفوظة بعد إعادة تحميل الصفحة.</div>}
             <div className="settings-actions">
-              <button className="submit-button" type="submit" disabled={!draft || save.isPending} data-testid="button-save-protection">{save.isPending ? 'جارٍ الحفظ...' : 'حفظ إعدادات الحماية'}</button>
+              <button className="submit-button" type="submit" disabled={!draft || save.isPending} data-testid="button-save-protection"><span>{save.isPending ? 'جارٍ الحفظ...' : 'حفظ إعدادات الحماية'}</span><span className="btn-ico"><Check size={17} /></span></button>
               {draft && <button className="retry-button" type="button" onClick={() => { setDraft(null); setError(''); setSuccess(false); }}>إلغاء التعديلات</button>}
             </div>
           </fieldset>

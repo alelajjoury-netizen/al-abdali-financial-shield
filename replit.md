@@ -45,6 +45,7 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 - Do not implement Open Banking, wearable integrations, behavioral AI, or real payments.
 - Read this file before each implementation step.
 - Do not create or run new automated tests or propose test tasks. The user has stopped that work and wants the running app and preview instead.
+- Frontend visual direction: follow the supplied Stitch mobile-bank reference with a centered mobile-first layout, navy identity, elegant virtual card, and prominent balance, postponed amounts, and action buttons.
 
 ## Gotchas
 

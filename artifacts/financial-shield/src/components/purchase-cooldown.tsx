@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ArrowUpLeft } from 'lucide-react';
 import {
   getGetDashboardQueryKey, useDecidePurchaseSimulation, type PurchaseSimulation,
 } from '@workspace/api-client-react';
@@ -80,7 +81,7 @@ export function PurchaseCooldown({ purchase }: { purchase: PurchaseSimulation })
       {message && <div className="form-message error" role="alert">{message}</div>}
       <div className="settings-actions">
         <button type="button" className="submit-button" disabled={seconds > 0 || !necessary || !budget || decision.isPending} onClick={() => decide('continue')} data-testid={`continue-${purchase.id}`}>
-          متابعة المحاكاة فقط
+          <span>متابعة المحاكاة فقط</span><span className="btn-ico"><ArrowUpLeft size={17} /></span>
         </button>
         <button type="button" className="retry-button" disabled={decision.isPending} onClick={() => decide('postpone')} data-testid={`postpone-${purchase.id}`}>
           تأجيل الشراء
