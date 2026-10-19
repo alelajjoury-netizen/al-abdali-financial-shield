@@ -65,3 +65,35 @@ export type AccountDocument = InferSchemaType<typeof accountSchema>;
 
 export const AccountModel =
   mongoose.models.Account ?? mongoose.model("Account", accountSchema);
+
+// A reserved ObjectId keeps the shared demo singleton safe across server instances.
+export const DEMO_ACCOUNT_ID = new mongoose.Types.ObjectId("000000000000000000000001");
+
+export async function readDemoAccount() {
+  const existing = await AccountModel.findById(DEMO_ACCOUNT_ID).lean();
+  if (existing) return existing;
+
+  const now = new Date();
+  try {
+    return await AccountModel.findOneAndUpdate(
+      { _id: DEMO_ACCOUNT_ID },
+      { $setOnInsert: {
+        displayName: "مستخدم الدرع",
+        balance: 750,
+        currency: "KWD",
+        shieldMode: false,
+        dangerHours: { enabled: false, startHour: 22, endHour: 7 },
+        limit: 100,
+        createdAt: now,
+        updatedAt: now,
+      } },
+      { upsert: true, returnDocument: "after", runValidators: true, timestamps: false },
+    ).lean();
+  } catch (error) {
+    if (error instanceof mongoose.mongo.MongoServerError && error.code === 11000) {
+      const account = await AccountModel.findById(DEMO_ACCOUNT_ID).lean();
+      if (account) return account;
+    }
+    throw error;
+  }
+}

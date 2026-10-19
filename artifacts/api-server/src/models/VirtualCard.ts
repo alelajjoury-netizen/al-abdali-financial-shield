@@ -27,3 +27,33 @@ export type VirtualCardDocument = InferSchemaType<typeof virtualCardSchema>;
 
 export const VirtualCardModel =
   mongoose.models.VirtualCard ?? mongoose.model("VirtualCard", virtualCardSchema);
+
+export async function readDemoVirtualCard(accountId: mongoose.Types.ObjectId) {
+  const existing = await VirtualCardModel.findOne({ accountId }).lean();
+  if (existing) return existing;
+
+  // Wait for the unique accountId index before allowing concurrent first inserts.
+  await VirtualCardModel.init();
+  const now = new Date();
+  try {
+    return await VirtualCardModel.findOneAndUpdate(
+      { accountId },
+      { $setOnInsert: {
+        holderName: "SAFETY SHIELD DEMO",
+        lastFour: "8492",
+        status: "active",
+        isDefault: true,
+        createdAt: now,
+        updatedAt: now,
+      } },
+      { upsert: true, returnDocument: "after", runValidators: true, timestamps: false },
+    ).lean();
+  } catch (error) {
+    // Another server can win the first-insert race; read its saved card.
+    if (error instanceof mongoose.mongo.MongoServerError && error.code === 11000) {
+      const card = await VirtualCardModel.findOne({ accountId }).lean();
+      if (card) return card;
+    }
+    throw error;
+  }
+}

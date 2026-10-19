@@ -11,6 +11,8 @@ import { databaseReady, databaseUnavailable } from "../lib/database-ready";
 import { isBlockedAt } from "../lib/purchase-protection";
 import { readProtectionSettings } from "../models/ProtectionSettings";
 import { PurchaseSimulationModel } from "../models/PurchaseSimulation";
+import { readDemoAccount } from "../models/Account";
+import { readDemoVirtualCard } from "../models/VirtualCard";
 
 const router: IRouter = Router();
 
@@ -41,6 +43,8 @@ router.get("/dashboard", async (req, res): Promise<void> => {
   if (!(await databaseReady(req, res))) return;
 
   try {
+  const account = await readDemoAccount();
+  const virtualCard = await readDemoVirtualCard(account._id);
   const records = await PurchaseSimulationModel.find()
     .sort({ createdAt: -1 })
     .limit(10)
@@ -51,14 +55,14 @@ router.get("/dashboard", async (req, res): Promise<void> => {
 
   res.json(GetDashboardResponse.parse({
     account: {
-      displayName: "مستخدم الدرع",
-      availableBalance: 750,
-      currency: "KWD",
+      displayName: account.displayName,
+      availableBalance: account.balance,
+      currency: account.currency,
     },
     virtualCard: {
-      holderName: "SAFETY SHIELD DEMO",
-      lastFour: "8492",
-      status: "active",
+      holderName: virtualCard.holderName,
+      lastFour: virtualCard.lastFour,
+      status: virtualCard.status,
     },
     protectionEnabled: settings.enabled,
     recentSimulations: records.map((record) => purchaseResponse(record as Parameters<typeof purchaseResponse>[0])),

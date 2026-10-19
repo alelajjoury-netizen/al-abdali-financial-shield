@@ -17,6 +17,9 @@ test("saved cooldown, awareness, postponement and atomic final decisions", {
   }
   const original = await request("/protection-settings");
   assert.equal(original.status, 200);
+  const initialDashboard = await request("/dashboard");
+  assert.equal(initialDashboard.status, 200);
+  const originalBalance = initialDashboard.data.account.availableBalance;
   const attempts = [];
   const hour = new Date().getUTCHours();
   const settings = { enabled: true, blockStartHour: hour, blockEndHour: (hour + 1) % 24, cooldownMinutes: 1 };
@@ -57,7 +60,7 @@ test("saved cooldown, awareness, postponement and atomic final decisions", {
     const dashboard = await request("/dashboard");
     assert.ok(dashboard.data.pendingSimulations.some((item) => item.id === purchase.id));
     assert.ok(!dashboard.data.pendingSimulations.some((item) => item.id === deferred.id));
-    assert.equal(dashboard.data.account.availableBalance, 750);
+    assert.equal(dashboard.data.account.availableBalance, originalBalance);
     assert.equal((await request("/purchases/not-an-id")).status, 404);
     assert.equal((await request("/purchases/simulate", "POST", { ...input, timeZone: "invalid" })).status, 400);
     console.info("Waiting for the real server-enforced one-minute deadline.");
@@ -69,7 +72,7 @@ test("saved cooldown, awareness, postponement and atomic final decisions", {
     assert.deepEqual(decisions.map((result) => result.status).sort(), [200, 409]);
     assert.equal(decisions.find((result) => result.status === 200).data.status, "simulated");
     assert.equal((await request(`/purchases/${purchase.id}`)).data.status, "simulated");
-    assert.equal((await request("/dashboard")).data.account.availableBalance, 750);
+    assert.equal((await request("/dashboard")).data.account.availableBalance, originalBalance);
   } finally {
     for (const id of attempts) {
       const record = await request(`/purchases/${id}`);
