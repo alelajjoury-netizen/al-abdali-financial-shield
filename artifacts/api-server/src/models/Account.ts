@@ -61,6 +61,11 @@ const accountSchema = new Schema(
   { timestamps: true },
 );
 
+// Query updates do not run schema validators by default in Mongoose.
+accountSchema.pre(["updateOne", "findOneAndUpdate"], function () {
+  this.setOptions({ runValidators: true });
+});
+
 export type AccountDocument = InferSchemaType<typeof accountSchema>;
 
 export const AccountModel =

@@ -23,6 +23,11 @@ const virtualCardSchema = new Schema(
 // The MVP provides a single default virtual card for each account.
 virtualCardSchema.index({ accountId: 1 }, { unique: true });
 
+// Query updates do not run schema validators by default in Mongoose.
+virtualCardSchema.pre(["updateOne", "findOneAndUpdate"], function () {
+  this.setOptions({ runValidators: true });
+});
+
 export type VirtualCardDocument = InferSchemaType<typeof virtualCardSchema>;
 
 export const VirtualCardModel =

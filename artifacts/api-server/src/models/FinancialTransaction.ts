@@ -42,6 +42,11 @@ financialTransactionSchema.index({ accountId: 1, createdAt: -1 });
 financialTransactionSchema.index({ accountId: 1, status: 1, createdAt: -1 });
 financialTransactionSchema.index({ cardId: 1, createdAt: -1 });
 
+// Query updates do not run schema validators by default in Mongoose.
+financialTransactionSchema.pre(["updateOne", "findOneAndUpdate"], function () {
+  this.setOptions({ runValidators: true });
+});
+
 export type FinancialTransactionDocument = InferSchemaType<typeof financialTransactionSchema>;
 
 export const FinancialTransactionModel =
