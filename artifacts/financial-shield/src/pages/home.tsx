@@ -5,10 +5,11 @@ import { AlertCircle, ArrowUpLeft, Check, CircleHelp, Clock3, CreditCard, Home, 
 import { ProtectionSettingsPanel } from '@/components/protection-settings';
 import { PurchaseCooldownDialog, formatClock, useCooldownSeconds } from '@/components/purchase-cooldown';
 import { clearPurchaseRequest, restorePurchaseRequest, savePurchaseRequest } from '@/lib/purchase-request';
+import { DISPLAY_LOCALE, formatAmount } from '@/lib/formatting';
 
 function formatMoney(amount: number, currency: string) {
   const label = currency === 'KWD' ? 'د.ك' : currency;
-  return new Intl.NumberFormat('ar-KW', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(amount) + ' ' + label;
+  return formatAmount(amount) + ' ' + label;
 }
 
 function currencyLabel(currency: string) {
@@ -18,7 +19,7 @@ function currencyLabel(currency: string) {
 function formatDate(date: string) {
   const value = new Date(date);
   if (Number.isNaN(value.getTime())) return date;
-  return new Intl.DateTimeFormat('ar-KW', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(value);
+  return new Intl.DateTimeFormat(DISPLAY_LOCALE, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(value);
 }
 
 function readableStatus(status: string) {
@@ -140,11 +141,11 @@ export default function HomePage() {
     const trimmedName = merchantName.trim();
     const parsedAmount = Number(amount);
     if (!trimmedName || trimmedName.length > 80) {
-      setFormError('أدخلي اسم المتجر، بحد أقصى ٨٠ حرفاً.');
+      setFormError('أدخلي اسم المتجر، بحد أقصى 80 حرفاً.');
       return;
     }
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0 || parsedAmount > 10000) {
-      setFormError('أدخلي مبلغاً أكبر من صفر ولا يتجاوز ١٠٬٠٠٠ د.ك.');
+      setFormError('أدخلي مبلغاً أكبر من صفر ولا يتجاوز 10,000 د.ك.');
       return;
     }
     let request = pendingRequest;
@@ -224,14 +225,14 @@ export default function HomePage() {
             <h1 data-testid="text-welcome">مرحباً، {isLoading ? '...' : (overview?.account.displayName === 'مستخدم الدرع' ? 'عبدالرحمن' : overview?.account.displayName || 'بك')}</h1>
             <p>نظرة هادئة على حسابك ومحاولات الشراء التجريبية.</p>
           </div>
-          <div className="today-date">{new Intl.DateTimeFormat('ar-KW', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</div>
+          <div className="today-date">{new Intl.DateTimeFormat(DISPLAY_LOCALE, { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</div>
         </section>
 
         <article className="balance-hero reveal" aria-label="الرصيد المتاح">
           <div className="hero-label"><span><Wallet size={15} /> الرصيد المتاح</span><CircleHelp size={14} /></div>
           {isLoading ? <div className="skeleton" style={{ height: 50, width: '62%', margin: '14px 0 8px auto' }} /> : overview ?
             <div className="balance-number" data-testid="text-available-balance">
-              <small>{currencyLabel(overview.account.currency)}</small>{new Intl.NumberFormat('ar-KW', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(overview.account.availableBalance)}
+              <small>{currencyLabel(overview.account.currency)}</small>{formatAmount(overview.account.availableBalance)}
             </div> :
             <div className="overview-unavailable" role="status" data-testid="message-balance-unavailable">
               <strong>الرصيد غير متاح</strong>
@@ -252,7 +253,7 @@ export default function HomePage() {
             <div className="savings-label">مبالغ أجّلتِها في السجل المحمّل</div>
             {postponedSubtotal ? (
               <div className="savings-value" data-testid="text-postponed-subtotal">
-                <small>د.ك</small>{new Intl.NumberFormat('ar-KW', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(postponedSubtotal.total)}
+                <small>د.ك</small>{formatAmount(postponedSubtotal.total)}
               </div>
             ) : (
               <div className="savings-value is-muted" data-testid="text-postponed-subtotal-unavailable">{isLoading ? 'جارٍ الحساب...' : 'غير متاح حالياً'}</div>
@@ -324,7 +325,7 @@ export default function HomePage() {
               <label className="field">
                 <span className="field-label">المبلغ</span>
                 <div className="amount-wrap">
-                  <input data-testid="input-purchase-amount" disabled={Boolean(pendingRequest) || createSimulation.isPending || restoreError} type="number" inputMode="decimal" min="0.001" max="10000" step="0.001" placeholder="٠٫٠٠٠" value={amount} onChange={(event) => setAmount(event.target.value)} />
+                  <input data-testid="input-purchase-amount" disabled={Boolean(pendingRequest) || createSimulation.isPending || restoreError} type="number" lang="en" dir="ltr" inputMode="decimal" min="0.001" max="10000" step="0.001" placeholder="0.000" value={amount} onChange={(event) => setAmount(event.target.value)} />
                   <span className="amount-unit">د.ك</span>
                 </div>
               </label>

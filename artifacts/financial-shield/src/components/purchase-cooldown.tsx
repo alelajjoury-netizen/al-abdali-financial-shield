@@ -6,6 +6,7 @@ import {
 } from '@workspace/api-client-react';
 import { Dialog, DialogDescription, DialogOverlay, DialogPortal, DialogTitle } from '@/components/ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { DISPLAY_LOCALE, formatAmount } from '@/lib/formatting';
 
 // Monotonic deadlines retained per attempt for the life of the tab. Closing and
 // reopening the dialog (or remounting) must not re-anchor on an older serverTime.
@@ -44,7 +45,7 @@ export function formatClock(seconds: number) {
 
 function money(purchase: PurchaseSimulation) {
   const label = purchase.currency === 'KWD' ? 'د.ك' : purchase.currency;
-  return new Intl.NumberFormat('ar-KW', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(purchase.amount) + ' ' + label;
+  return formatAmount(purchase.amount) + ' ' + label;
 }
 
 type Props = { purchase: PurchaseSimulation; onDecided?: (result: PurchaseSimulation) => void };
@@ -113,7 +114,7 @@ export function PurchaseCooldown({ purchase, onDecided }: Props) {
         <div className="cooldown-clock" role="timer" aria-live="off" aria-label="الوقت المتبقي للتهدئة" dir="ltr" data-testid={`timer-${purchase.id}`}>
           {formatClock(seconds)}
         </div>
-        {purchase.cooldownEndsAt && <p>تنتهي في {new Date(purchase.cooldownEndsAt).toLocaleTimeString('ar-KW')} بتوقيت جهازك، وتبقى محفوظة بعد إغلاق النافذة أو تحديث الصفحة.</p>}
+        {purchase.cooldownEndsAt && <p>تنتهي في {new Date(purchase.cooldownEndsAt).toLocaleTimeString(DISPLAY_LOCALE)} بتوقيت جهازك، وتبقى محفوظة بعد إغلاق النافذة أو تحديث الصفحة.</p>}
       </div>
 
       <div className="brake-questions">

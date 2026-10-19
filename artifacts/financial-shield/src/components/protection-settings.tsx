@@ -35,7 +35,7 @@ export function ProtectionSettingsPanel() {
     setSuccess(false);
     const cooldownMinutes = Number(values.cooldownMinutes);
     if (!Number.isInteger(cooldownMinutes) || cooldownMinutes < 1 || cooldownMinutes > 120) {
-      setError('أدخل مدة تهدئة من ١ إلى ١٢٠ دقيقة، دون كسور.');
+      setError('أدخل مدة تهدئة من 1 إلى 120 دقيقة، دون كسور.');
       return;
     }
     if (values.blockStartHour === values.blockEndHour) {
@@ -82,22 +82,22 @@ export function ProtectionSettingsPanel() {
             <div className="settings-grid">
               <label className="field">
                 <span className="field-label">بداية الحظر</span>
-                <select value={values.blockStartHour} onChange={(event) => change({ blockStartHour: Number(event.target.value) })} data-testid="select-block-start">
+                <select lang="en" dir="ltr" value={values.blockStartHour} onChange={(event) => change({ blockStartHour: Number(event.target.value) })} data-testid="select-block-start">
                   {hours.map((hour) => <option key={hour} value={hour}>{hourLabel(hour)}</option>)}
                 </select>
               </label>
               <label className="field">
                 <span className="field-label">نهاية الحظر</span>
-                <select value={values.blockEndHour} onChange={(event) => change({ blockEndHour: Number(event.target.value) })} data-testid="select-block-end">
+                <select lang="en" dir="ltr" value={values.blockEndHour} onChange={(event) => change({ blockEndHour: Number(event.target.value) })} data-testid="select-block-end">
                   {hours.map((hour) => <option key={hour} value={hour}>{hourLabel(hour)}</option>)}
                 </select>
               </label>
               <label className="field">
                 <span className="field-label">مدة التهدئة بالدقائق</span>
-                <input type="number" min={1} max={120} step={1} inputMode="numeric" value={values.cooldownMinutes} onChange={(event) => change({ cooldownMinutes: event.target.value })} data-testid="input-cooldown-minutes" />
+                <input type="number" lang="en" dir="ltr" min={1} max={120} step={1} inputMode="numeric" value={values.cooldownMinutes} onChange={(event) => change({ cooldownMinutes: event.target.value })} data-testid="input-cooldown-minutes" />
               </label>
             </div>
-            <p className="settings-hint">بنظام ٢٤ ساعة، حسب التوقيت المحلي للجهاز. تبدأ الفترة عند ساعة البداية وتنتهي عند ساعة النهاية{values.blockStartHour > values.blockEndHour ? ' في اليوم التالي (عبر منتصف الليل)' : ''}. يجب أن تختلف الساعتان.</p>
+            <p className="settings-hint">بنظام 24 ساعة، حسب التوقيت المحلي للجهاز. تبدأ الفترة عند ساعة البداية وتنتهي عند ساعة النهاية{values.blockStartHour > values.blockEndHour ? ' في اليوم التالي (عبر منتصف الليل)' : ''}. يجب أن تختلف الساعتان.</p>
             <p className="settings-hint">أثناء ساعات الحظر تبدأ محاولات الشراء بمهلة تهدئة، تليها أسئلة توعية قبل المتابعة. خارج الفترة تُسجّل المحاكاة مباشرة. لا تتغير المهل القائمة بتعديل الإعدادات، ولا توجد مدفوعات حقيقية.</p>
             {error && <div className="form-message error" role="alert" data-testid="message-settings-error">{error}</div>}
             {success && <div className="form-message success" role="status" data-testid="message-settings-success">تم حفظ إعدادات الحماية. ستبقى محفوظة بعد إعادة تحميل الصفحة.</div>}
