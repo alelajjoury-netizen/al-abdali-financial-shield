@@ -1,4 +1,4 @@
-import { test, expect, ID, openHome, advance } from './purchase-fixture';
+import { test, expect, ID, openHome, advance, answerNo } from './purchase-fixture';
 import type { Page } from '@playwright/test';
 
 const STORAGE_KEY = 'financial-shield-pending-purchase';
@@ -64,6 +64,103 @@ test('a lost creation response survives reload and retry keeps the key, record a
   expect(api.creations[2].idempotencyKey).not.toBe(request.idempotencyKey);
   expect(api.creationCount).toBe(2);
 });
+
+for (const action of ['continue', 'postpone'] as const) {
+  test(`retrying a lost creation response after another window's ${action} restores only the final decision`, async ({ page, context, api }) => {
+    api.lostCreationResponse = true;
+    await openHome(page, api);
+    await page.getByTestId('input-merchant-name').fill('متجر استعادة القرار');
+    await page.getByTestId('input-purchase-amount').fill('12.5');
+    await page.getByTestId('button-submit-simulation').click();
+    await expect(page.getByTestId('message-form-error')).toContainText('لم نتلقَّ تأكيدًا');
+    const request = { ...api.creations[0] };
+    const originalDeadline = api.purchase!.cooldownEndsAt;
+    // The original tab retains its uncertain request even though history knows
+    // about the saved purchase. Reload must not send another creation by itself.
+    await page.reload();
+    await expect(page.getByTestId('input-merchant-name')).toHaveValue(request.merchantName);
+    await expect(page.getByTestId('input-merchant-name')).toBeDisabled();
+    expect(api.creations).toEqual([request]);
+    await expect(page.getByTestId(`cooldown-${ID}`)).toBeVisible();
+
+    const second = await context.newPage();
+    await openHome(second, api);
+    if (action === 'continue') {
+      await advance(second, api, 60_000);
+      await answerNo(second);
+    } else {
+      // Postponement ends the attempt while its original deadline is future.
+      await expect(second.getByTestId(`timer-${ID}`)).toBeVisible();
+      await expect(second.getByTestId(`continue-${ID}`)).toBeDisabled();
+    }
+    await second.getByTestId(`${action}-${ID}`).click();
+    const label = action === 'continue' ? 'محاكاة مسجلة' : 'تم تأجيل الشراء';
+    await expect(second.getByTestId(`row-simulation-${ID}`)).toContainText(label);
+    await expect(second.getByTestId(`cooldown-${ID}`)).toHaveCount(0);
+    const finalPurchase = { ...api.purchase! };
+    const expectedDecisions = action === 'continue'
+      ? [{ action, isNecessary: false, fitsBudget: false }]
+      : [{ action }];
+    expect(api.decisions).toEqual(expectedDecisions);
+
+    let releaseDashboard!: () => void;
+    api.holdDashboard = new Promise<void>((resolve) => { releaseDashboard = resolve; });
+    try {
+      api.lostCreationResponse = false;
+      const replayResponse = page.waitForResponse((response) =>
+        response.url().endsWith('/api/purchases/simulate') && response.request().method() === 'POST');
+      await page.getByTestId('button-submit-simulation').click();
+      const response = await replayResponse;
+      expect(response.status()).toBe(200);
+      expect(await response.json()).toEqual(api.snapshot());
+      // With dashboard refetches held, these assertions exercise the mutation's
+      // cache update rather than allowing a GET to hide a reopened pending card.
+      await expect(page.getByTestId(`row-simulation-${ID}`)).toHaveCount(1);
+      await expect(page.getByTestId(`row-simulation-${ID}`)).toContainText(label);
+      await expect(page.getByRole('region', { name: 'المحاولات قيد التهدئة' })).toHaveCount(0);
+      for (const prefix of ['cooldown', 'timer', 'question-need', 'question-budget', 'continue', 'postpone']) {
+        await expect(page.getByTestId(`${prefix}-${ID}`)).toHaveCount(0);
+      }
+    } finally {
+      api.holdDashboard = null;
+      releaseDashboard();
+    }
+
+    const message = action === 'continue'
+      ? 'المحاكاة محفوظة. لم يتم إنشاء نسخة مكررة أو خصم أي مبلغ من رصيدك.'
+      : 'استُعيدت المحاولة المؤجلة نفسها. لم يتم إنشاء محاولة أخرى أو خصم أموال.';
+    await expect(page.getByTestId('message-form-success')).toHaveCount(1);
+    await expect(page.getByTestId('message-form-success')).toHaveText(message);
+    await expect(page.getByTestId('message-form-error')).toHaveCount(0);
+    await expect(page.getByTestId('input-merchant-name')).toBeEnabled();
+    await expect(page.getByTestId('input-merchant-name')).toHaveValue('');
+    await expect(page.getByTestId('input-purchase-amount')).toHaveValue('');
+    expect(await page.evaluate((key) => sessionStorage.getItem(key), STORAGE_KEY)).toBeNull();
+
+    // Pass the original deadline as well: a postponed attempt must not later
+    // reopen awareness questions, and a completed one must stay completed.
+    await advance(page, api, 61_000);
+    await page.reload();
+    await expect(page.getByTestId('text-welcome')).toContainText('حساب الاختبار');
+    await expect(page.getByTestId(`row-simulation-${ID}`)).toHaveCount(1);
+    await expect(page.getByTestId(`row-simulation-${ID}`)).toContainText(label);
+    await expect(page.getByRole('region', { name: 'المحاولات قيد التهدئة' })).toHaveCount(0);
+    for (const prefix of ['cooldown', 'timer', 'question-need', 'question-budget', 'continue', 'postpone']) {
+      await expect(page.getByTestId(`${prefix}-${ID}`)).toHaveCount(0);
+    }
+    await expect(page.getByTestId('message-form-success')).toHaveCount(0);
+    await expect(page.getByTestId('message-form-error')).toHaveCount(0);
+    await expect(page.getByTestId('input-merchant-name')).toBeEnabled();
+    await expect(page.getByTestId('input-merchant-name')).toHaveValue('');
+    expect(api.creations).toEqual([request, request]);
+    expect(api.creationCount).toBe(1);
+    expect(api.purchasesByKey.size).toBe(1);
+    expect(api.purchase).toEqual(finalPurchase);
+    expect(api.purchase!.cooldownEndsAt).toBe(originalDeadline);
+    expect(api.decisions).toEqual(expectedDecisions);
+    expect(api.dashboard().pendingSimulations).toEqual([]);
+  });
+}
 
 test('double submission is blocked; an explicit new attempt after failure uses a fresh key', async ({ page, api }) => {
   api.lostCreationResponse = true;

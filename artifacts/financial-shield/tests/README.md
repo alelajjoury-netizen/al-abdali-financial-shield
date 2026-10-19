@@ -62,6 +62,10 @@ pnpm --filter @workspace/financial-shield test:ui protection-settings.spec.ts
 - Lost creation responses retain their request key across reload and retry; recovery
   keeps the original deadline and deduplicates the UI. Double submissions are blocked;
   explicit new attempts and attempts after confirmed success receive fresh keys.
+- If another window continues or postpones before a lost-response retry, recovery
+  shows the saved final decision once with the correct confirmation. Held dashboard
+  reads verify that the retry itself removes pending UI; passing the original
+  deadline and reloading never reopens a timer or awareness questions.
 
 - Create a purchase and reload during cooldown: remaining time is neither reset
   nor skipped. A device wall-clock jump cannot bypass the monotonic countdown.

@@ -17,6 +17,7 @@ export class PurchaseApi {
   otherPurchases: PurchaseSimulation[] = [];
   decisions: PurchaseDecisionInput[] = [];
   dashboardReads = 0;
+  holdDashboard: Promise<void> | null = null;
   failure: 'server' | 'network' | null = null;
   holdDecision: Promise<void> | null = null;
   creations: PurchaseSimulationInput[] = [];
@@ -76,6 +77,7 @@ export const test = base.extend<{ api: PurchaseApi }>({
       const method = request.method();
       if (path === '/api/dashboard' && method === 'GET') {
         api.dashboardReads++;
+        if (api.holdDashboard) await api.holdDashboard;
         return route.fulfill({ json: api.dashboard() });
       }
       if (path === '/api/protection-settings' && method === 'GET') {
