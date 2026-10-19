@@ -14,6 +14,7 @@ export class PurchaseApi {
   now = START;
   clockInstalled = false;
   purchase: PurchaseSimulation | null = null;
+  otherPurchases: PurchaseSimulation[] = [];
   decisions: PurchaseDecisionInput[] = [];
   dashboardReads = 0;
   failure: 'server' | 'network' | null = null;
@@ -44,12 +45,17 @@ export class PurchaseApi {
   }
 
   dashboard(): Dashboard {
-    const purchases = this.purchase ? [this.snapshot()] : [];
+    const purchases = [
+      ...(this.purchase ? [this.snapshot()] : []),
+      ...this.otherPurchases.map((purchase) => ({
+        ...purchase, serverTime: new Date(this.now).toISOString(),
+      })),
+    ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     return {
       account: { displayName: 'حساب الاختبار', availableBalance: 250, currency: 'KWD' },
       virtualCard: { holderName: 'حساب الاختبار', lastFour: '1234', status: 'active' },
       protectionEnabled: this.settings.enabled,
-      recentSimulations: purchases,
+      recentSimulations: purchases.slice(0, 10),
       pendingSimulations: purchases.filter((p) => p.status === 'cooling_down'),
     };
   }

@@ -55,6 +55,10 @@ pnpm --filter @workspace/financial-shield test:ui protection-settings.spec.ts
 
 ### Purchase cooldown and retries
 
+- A full ten-entry history does not hide an older pending attempt. It survives
+  cooldown expiry and reloads; continuing or postponing it preserves all ten
+  recent rows and the other pending card, including after refetch and reload.
+
 - Lost creation responses retain their request key across reload and retry; recovery
   keeps the original deadline and deduplicates the UI. Double submissions are blocked;
   explicit new attempts and attempts after confirmed success receive fresh keys.

@@ -133,6 +133,51 @@ test("GET /api/dashboard reflects isolated saved account/card edits with the exa
   assert.equal(warn.mock.callCount(), 0);
 });
 
+test("GET /api/dashboard limits recent history to ten without truncating older pending attempts", async () => {
+  const start = Date.parse("2026-10-19T10:00:00.000Z");
+  const records = Array.from({ length: 24 }, (_, index) => ({
+    _id: new mongoose.Types.ObjectId(),
+    merchantName: `Isolated purchase ${index}`,
+    amount: index + 1,
+    currency: "KWD",
+    status: index < 10 && index % 2 === 1 ? "simulated" : "cooling_down",
+    createdAt: new Date(start - index * 60_000),
+    cooldownEndsAt: new Date(start + 60_000),
+    decidedAt: null,
+  }));
+  mock.method(PurchaseSimulationModel, "find", (filter = {}) => {
+    let selected = records.filter((record) => Object.entries(filter)
+      .every(([key, value]) => record[key] === value)).reverse();
+    const result = {
+      sort: (order) => {
+        assert.deepEqual(order, { createdAt: -1 });
+        selected.sort((a, b) => b.createdAt - a.createdAt);
+        return result;
+      },
+      limit: (count) => {
+        selected = selected.slice(0, count);
+        return result;
+      },
+      lean: async () => selected.map((record) => ({ ...record })),
+    };
+    return result;
+  });
+
+  const { status, body } = await dashboard();
+  assert.equal(status, 200);
+  const ids = (items) => items.map((item) => (item._id ?? item.id).toString());
+  const expectedPending = records.filter((record) => record.status === "cooling_down");
+  assert.equal(expectedPending.length, 19);
+  assert.equal(body.recentSimulations.length, 10);
+  assert.deepEqual(ids(body.recentSimulations), ids(records.slice(0, 10)));
+  assert.deepEqual(ids(body.pendingSimulations), ids(expectedPending));
+  assert.ok(body.pendingSimulations.every((item) => item.status === "cooling_down"));
+  const oldestId = records.at(-1)._id.toString();
+  assert.ok(!ids(body.recentSimulations).includes(oldestId));
+  assert.ok(ids(body.pendingSimulations).includes(oldestId));
+  assert.equal(warn.mock.callCount(), 0);
+});
+
 test("GET /api/dashboard returns 503 when database readiness fails, without reading demo data", async () => {
   // Force readiness failure without accessing or replacing any secret.
   mock.getter(mongoose, "connection", () => { throw new Error("database unavailable"); });
