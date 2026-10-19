@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCreatePurchaseSimulation, useGetDashboard, getGetDashboardQueryKey, type Dashboard, type PurchaseSimulation } from '@workspace/api-client-react';
 import { AlertCircle, ArrowUpLeft, Check, CircleHelp, Clock3, CreditCard, Home, Hourglass, LockKeyhole, PiggyBank, Plus, ReceiptText, ShieldCheck, SlidersHorizontal, Store, Wallet } from 'lucide-react';
 import { ProtectionSettingsPanel } from '@/components/protection-settings';
-import { PurchaseCooldown } from '@/components/purchase-cooldown';
+import { PurchaseCooldownDialog, formatClock, useCooldownSeconds } from '@/components/purchase-cooldown';
 import { clearPurchaseRequest, restorePurchaseRequest, savePurchaseRequest } from '@/lib/purchase-request';
 
 function formatMoney(amount: number, currency: string) {
@@ -54,6 +54,15 @@ export default function HomePage() {
   const createSimulation = useCreatePurchaseSimulation({
     mutation: {
       onSuccess: (purchase) => {
+        const resolved = reconcileCreation(purchase, queryClient.getQueryData<Dashboard>(getGetDashboardQueryKey()));
+        // Open from the confirmed creation reply, not the later refetch:
+        // React Query awaits this hook before running per-call callbacks.
+        if (resolved.status === 'cooling_down' && !decidedIds.current.has(String(resolved.id))) {
+          autoOpened.current = true;
+          setActiveSnapshot(resolved);
+          setActiveId(String(resolved.id));
+          setModalOpen(true);
+        }
         queryClient.setQueryData<Dashboard>(getGetDashboardQueryKey(), (previous) => {
           const resolved = reconcileCreation(purchase, previous);
           return previous ? {
@@ -73,6 +82,55 @@ export default function HomePage() {
   const [formError, setFormError] = useState(restored.error);
   const [restoreError, setRestoreError] = useState(Boolean(restored.error));
   const [successMessage, setSuccessMessage] = useState('');
+
+  // One cooldown modal at a time. `activeSnapshot` holds the creation reply so the
+  // modal can open before any dashboard refetch; fresher cache data wins when present.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeSnapshot, setActiveSnapshot] = useState<PurchaseSimulation | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const decidedIds = useRef(new Set<string>());
+  const autoOpened = useRef(false);
+
+  const terminalIds = useMemo(() => {
+    const ids = new Set(decidedIds.current);
+    for (const item of dashboard?.recentSimulations ?? []) if (item.status !== 'cooling_down') ids.add(String(item.id));
+    return ids;
+  }, [dashboard]);
+
+  const pendingList = useMemo(() => {
+    const list = (dashboard?.pendingSimulations ?? []).filter((p) => !terminalIds.has(String(p.id)));
+    if (activeSnapshot && !terminalIds.has(String(activeSnapshot.id)) && !list.some((p) => String(p.id) === String(activeSnapshot.id))) {
+      list.unshift(activeSnapshot);
+    }
+    return list;
+  }, [dashboard, terminalIds, activeSnapshot]);
+
+  const activePurchase = activeId ? pendingList.find((p) => String(p.id) === activeId) ?? null : null;
+
+  function openCooldown(purchase: PurchaseSimulation) {
+    if (terminalIds.has(String(purchase.id))) return;
+    setActiveId(String(purchase.id));
+    setModalOpen(true);
+  }
+
+  function handleDecided(result: PurchaseSimulation) {
+    decidedIds.current.add(String(result.id));
+    setModalOpen(false);
+    setActiveSnapshot((snap) => (snap && String(snap.id) === String(result.id) ? null : snap));
+  }
+
+  // Close when polling reports a terminal decision for the open attempt.
+  useEffect(() => {
+    if (activeId && !activePurchase) setModalOpen(false);
+  }, [activeId, activePurchase]);
+
+  // After load/reload, surface one existing pending attempt once.
+  useEffect(() => {
+    if (autoOpened.current || !dashboard || isError) return;
+    autoOpened.current = true;
+    const first = dashboard.pendingSimulations.find((p) => p.status === 'cooling_down' && !terminalIds.has(String(p.id)));
+    if (first && !activeId) { setActiveId(String(first.id)); setModalOpen(true); }
+  }, [dashboard, isError, terminalIds, activeId]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -242,11 +300,13 @@ export default function HomePage() {
           <div className={`enabled-state ${dashboard?.protectionEnabled ? '' : 'is-disabled'}`}><i />{isLoading ? 'جارٍ التحقق' : isError ? 'حالة الحماية غير متاحة' : dashboard?.protectionEnabled ? 'الدرع مفعّل · إعداد تجريبي' : 'الدرع غير مفعّل'}</div>
         </section>
 
-        {!!dashboard?.pendingSimulations.length && (
+        {!!pendingList.length && (
           <section className="panel settings-panel cooldown-section" aria-label="المحاولات قيد التهدئة" id="section-cooldown">
             <h2 className="panel-heading"><Hourglass size={18} /> توقفي لحظة قبل الشراء</h2>
             <p className="settings-hint">محاولات محفوظة للحساب التجريبي المشترك. تغيير الإعدادات لا يلغي مهلة بدأت بالفعل.</p>
-            {dashboard.pendingSimulations.map((purchase) => <PurchaseCooldown key={purchase.id} purchase={purchase} />)}
+            {pendingList.map((purchase) => (
+              <PendingRow key={purchase.id} purchase={purchase} isOpen={modalOpen && activeId === String(purchase.id)} onOpen={() => openCooldown(purchase)} />
+            ))}
           </section>
         )}
 
@@ -333,7 +393,26 @@ export default function HomePage() {
       </main>
 
       <BottomNav />
+      <PurchaseCooldownDialog purchase={activePurchase} open={modalOpen && !!activePurchase} onOpenChange={setModalOpen} onDecided={handleDecided} />
     </div>
+  );
+}
+
+function PendingRow({ purchase, isOpen, onOpen }: { purchase: PurchaseSimulation; isOpen: boolean; onOpen: () => void }) {
+  const seconds = useCooldownSeconds(purchase);
+  return (
+    <article className="cooldown-card pending-row" data-testid={`row-pending-${purchase.id}`}>
+      <div className="pending-row-info">
+        <h3>{purchase.merchantName}</h3>
+        <span className="num">{formatMoney(purchase.amount, purchase.currency)}</span>
+      </div>
+      <div className="pending-row-side">
+        <span className="pending-row-clock num" dir="ltr" data-testid={`text-pending-timer-${purchase.id}`}>{seconds > 0 ? formatClock(seconds) : 'جاهزة'}</span>
+        <button type="button" className="retry-button" disabled={isOpen} onClick={onOpen} data-testid={`button-open-cooldown-${purchase.id}`}>
+          {seconds > 0 ? 'عرض المهلة' : 'اتخاذ القرار'}
+        </button>
+      </div>
+    </article>
   );
 }
 
