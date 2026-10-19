@@ -194,7 +194,7 @@ export const GetPurchaseSimulationResponse = zod.object({
 
 
 /**
- * Postpone at any time, or continue only after the saved cooldown and both awareness answers. A terminal decision cannot be changed. No real charge.
+ * Postpone at any time, or continue only after the saved cooldown and all three awareness answers. Either boolean answer is accepted. A terminal decision cannot be changed. No real charge.
  */
 export const decidePurchaseSimulationPathIdRegExp = new RegExp('^[a-fA-F0-9]{24}$');
 
@@ -206,7 +206,9 @@ export const DecidePurchaseSimulationParams = zod.object({
 export const DecidePurchaseSimulationBody = zod.object({
   "action": zod.enum(['continue', 'postpone']),
   "isNecessary": zod.boolean().optional().describe('Answer to whether this purchase is a current need; either answer is accepted'),
-  "fitsBudget": zod.boolean().optional().describe('Answer to whether this purchase fits the planned budget; either answer is accepted')
+  "fitsBudget": zod.boolean().optional().describe('Legacy budget answer retained for compatibility with historical clients; does not replace the three current answers'),
+  "stillWantsTomorrow": zod.boolean().optional().describe('Whether the user expects the same desire and need tomorrow morning; required for continuation, either answer accepted'),
+  "understandsBudgetImpact": zod.boolean().optional().describe('Reflection on budget impact and possible regret; required for continuation, either answer accepted')
 })
 
 export const DecidePurchaseSimulationResponse = zod.object({

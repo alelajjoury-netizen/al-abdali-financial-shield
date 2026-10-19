@@ -627,7 +627,7 @@ export const getDecidePurchaseSimulationUrl = (id: string,) => {
 }
 
 /**
- * Postpone at any time, or continue only after the saved cooldown and both awareness answers. A terminal decision cannot be changed. No real charge.
+ * Postpone at any time, or continue only after the saved cooldown and all three awareness answers. Either boolean answer is accepted. A terminal decision cannot be changed. No real charge.
  */
 export const decidePurchaseSimulation = async (id: string,
     purchaseDecisionInput: PurchaseDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<PurchaseSimulation> => {

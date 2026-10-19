@@ -11,6 +11,10 @@ export interface PurchaseDecisionInput {
   action: PurchaseDecisionInputAction;
   /** Answer to whether this purchase is a current need; either answer is accepted */
   isNecessary?: boolean;
-  /** Answer to whether this purchase fits the planned budget; either answer is accepted */
+  /** Legacy budget answer retained for compatibility with historical clients; does not replace the three current answers */
   fitsBudget?: boolean;
+  /** Whether the user expects the same desire and need tomorrow morning; required for continuation, either answer accepted */
+  stillWantsTomorrow?: boolean;
+  /** Reflection on budget impact and possible regret; required for continuation, either answer accepted */
+  understandsBudgetImpact?: boolean;
 }

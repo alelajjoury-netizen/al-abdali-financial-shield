@@ -15,8 +15,8 @@ Interpret the daily block interval in the device's local clock, including the st
 
 **How to apply:** Use this convention when the next phase applies blocking and cooldowns. Settings alone do not claim to enforce purchases.
 
-In this MVP, a purchase started during protected hours waits for a cooldown, then can proceed after two awareness answers; protected hours are not an absolute ban. Either yes/no answer is valid. Postponement ends that attempt without scheduling an automatic purchase.
+In this MVP, a purchase started during protected hours waits for a cooldown, then can proceed after three awareness answers: urgent need versus late-night impulse, tomorrow-morning desire, and budget impact/possible regret. Protected hours are not an absolute ban. Either yes/no answer is valid. Postponement remains available immediately without answers and ends that attempt without scheduling an automatic purchase.
 
-**Why:** The approved scope is a reflective purchase simulation, not a payment-blocking system or an automated purchase scheduler.
+**Why:** The user requested three reflection questions and an easier, prominent postponement action. The approved scope is a reflective purchase simulation, not a payment-blocking system or an automated purchase scheduler.
 
 **How to apply:** Keep final decisions terminal and don't reinterpret postponement as authorization to execute later. Changes to protection settings affect new attempts, not cooldowns already started.

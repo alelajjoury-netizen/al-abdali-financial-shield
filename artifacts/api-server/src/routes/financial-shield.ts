@@ -136,8 +136,10 @@ router.post("/purchases/:id/decision", async (req, res): Promise<void> => {
   }
   const parsed = DecidePurchaseSimulationBody.strict().safeParse(req.body);
   if (!parsed.success || (parsed.data.action === "continue" &&
-      (typeof parsed.data.isNecessary !== "boolean" || typeof parsed.data.fitsBudget !== "boolean"))) {
-    res.status(400).json({ error: "اختر قرارًا وأجب عن سؤالي التوعية قبل المتابعة." });
+      (typeof parsed.data.isNecessary !== "boolean" ||
+       typeof parsed.data.stillWantsTomorrow !== "boolean" ||
+       typeof parsed.data.understandsBudgetImpact !== "boolean"))) {
+    res.status(400).json({ error: "اختر قرارًا وأجب عن الأسئلة التوعوية الثلاثة قبل المتابعة." });
     return;
   }
   if (!(await databaseReady(req, res))) return;
@@ -155,7 +157,9 @@ router.post("/purchases/:id/decision", async (req, res): Promise<void> => {
         status: continuing ? "simulated" : "postponed",
         decidedAt: now,
         ...(continuing ? { awareness: {
-          isNecessary: parsed.data.isNecessary, fitsBudget: parsed.data.fitsBudget,
+          isNecessary: parsed.data.isNecessary,
+          stillWantsTomorrow: parsed.data.stillWantsTomorrow,
+          understandsBudgetImpact: parsed.data.understandsBudgetImpact,
         } } : {}),
       } },
       { returnDocument: "after", runValidators: true },

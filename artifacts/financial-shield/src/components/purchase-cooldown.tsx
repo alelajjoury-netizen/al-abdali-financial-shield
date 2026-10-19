@@ -54,17 +54,23 @@ export function PurchaseCooldown({ purchase, onDecided }: Props) {
   const client = useQueryClient();
   const seconds = useCooldownSeconds(purchase);
   const [necessary, setNecessary] = useState('');
-  const [budget, setBudget] = useState('');
+  const [tomorrow, setTomorrow] = useState('');
+  const [budgetImpact, setBudgetImpact] = useState('');
   const [message, setMessage] = useState('');
   const decision = useDecidePurchaseSimulation();
 
   function decide(action: 'continue' | 'postpone') {
+    if (decision.isPending || (action === 'continue' && (seconds > 0 || !necessary || !tomorrow || !budgetImpact))) return;
     setMessage('');
     decision.mutate({
       id: purchase.id,
       data: {
         action,
-        ...(action === 'continue' ? { isNecessary: necessary === 'yes', fitsBudget: budget === 'yes' } : {}),
+        ...(action === 'continue' ? {
+          isNecessary: necessary === 'yes',
+          stillWantsTomorrow: tomorrow === 'yes',
+          understandsBudgetImpact: budgetImpact === 'yes',
+        } : {}),
       },
     }, {
       onSuccess: (result) => {
@@ -110,32 +116,37 @@ export function PurchaseCooldown({ purchase, onDecided }: Props) {
         {purchase.cooldownEndsAt && <p>تنتهي في {new Date(purchase.cooldownEndsAt).toLocaleTimeString('ar-KW')} بتوقيت جهازك، وتبقى محفوظة بعد إغلاق النافذة أو تحديث الصفحة.</p>}
       </div>
 
-      {!cooling && (
-        <div className="brake-questions">
-          <p role="status">أجيبي عن السؤالين قبل تأكيد الشراء. لا توجد إجابة صحيحة أو خاطئة.</p>
-          <label className="field">
-            <span className="field-label">هل هذه المشتريات حاجة ضرورية الآن؟</span>
-            <select value={necessary} onChange={(event) => setNecessary(event.target.value)} data-testid={`question-need-${purchase.id}`}>
-              <option value="">اختاري إجابة</option><option value="yes">نعم</option><option value="no">لا</option>
-            </select>
-          </label>
-          <label className="field">
-            <span className="field-label">هل يناسب المبلغ ميزانيتك المخططة؟</span>
-            <select value={budget} onChange={(event) => setBudget(event.target.value)} data-testid={`question-budget-${purchase.id}`}>
-              <option value="">اختاري إجابة</option><option value="yes">نعم</option><option value="no">لا</option>
-            </select>
-          </label>
-        </div>
-      )}
+      <div className="brake-questions">
+        <h3>قبل قرارك، خذ لحظة للتفكير</h3>
+        <p id={`awareness-help-${purchase.id}`}>اقرأ الأسئلة الثلاثة وأجب عنها قبل التأكيد. نعم أو لا مقبولتان؛ التأجيل متاح فورًا دون إجابات.</p>
+        {[
+          { key: 'need', text: 'هل هذا المنتج ضرورة ملحة الآن أم رغبة مؤقتة بسبب السهر؟', value: necessary, update: setNecessary },
+          { key: 'tomorrow', text: 'هل ستشعر بنفس الشغف وحاجة الشراء له غداً صباحاً؟', value: tomorrow, update: setTomorrow },
+          { key: 'budget-impact', text: 'هل تدرك أن هذه القيمة ستخصم من ميزانيتك وستندم عليها لاحقاً؟', value: budgetImpact, update: setBudgetImpact },
+        ].map((question, index) => (
+          <fieldset className="brake-question" key={question.key} aria-describedby={`awareness-help-${purchase.id}`} disabled={decision.isPending} data-testid={`question-${question.key}-${purchase.id}`}>
+            <legend>{index + 1}. {question.text}</legend>
+            <div className="brake-choices">
+              {['yes', 'no'].map((answer) => (
+                <label className={`brake-choice ${question.value === answer ? 'is-selected' : ''}`} key={answer}>
+                  <input type="radio" name={`${purchase.id}-${question.key}`} value={answer} checked={question.value === answer} onChange={() => question.update(answer)} />
+                  <span>{answer === 'yes' ? 'نعم' : 'لا'}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        <p role="status">{[necessary, tomorrow, budgetImpact].filter(Boolean).length} / 3 إجابات مكتملة{cooling ? ' · التأكيد مقفول حتى انتهاء العداد' : ' · انتهت المهلة'}</p>
+      </div>
 
       {message && <div className="form-message error" role="alert" data-testid={`message-decision-error-${purchase.id}`}>{message}</div>}
 
       <div className="brake-actions">
         <button type="button" className="brake-postpone" disabled={decision.isPending} onClick={() => decide('postpone')} data-testid={`postpone-${purchase.id}`}>
-          <PiggyBank size={17} /> {decision.isPending ? 'جارٍ حفظ القرار...' : 'تأجيل الشراء وتوفير المبلغ'}
+          <PiggyBank size={17} /> {decision.isPending ? 'جارٍ حفظ القرار...' : 'طق بريك وأجل الشراء 🛡️'}
         </button>
-        <button type="button" className="submit-button brake-confirm" disabled={cooling || !necessary || !budget || decision.isPending} onClick={() => decide('continue')} data-testid={`continue-${purchase.id}`}>
-          <span>تأكيد الشراء بعد انقضاء المهلة</span><span className="btn-ico"><ArrowUpLeft size={17} /></span>
+        <button type="button" className="submit-button brake-confirm" disabled={cooling || !necessary || !tomorrow || !budgetImpact || decision.isPending} onClick={() => decide('continue')} data-testid={`continue-${purchase.id}`}>
+          <span>{cooling ? 'تأكيد الشراء (مقفول مؤقتاً حتى انتهاء العداد)' : !necessary || !tomorrow || !budgetImpact ? 'تأكيد الشراء (أجب عن الأسئلة الثلاثة أولاً)' : 'تأكيد الشراء'}</span><span className="btn-ico"><ArrowUpLeft size={17} /></span>
         </button>
       </div>
       <p className="brake-fine">عرض تجريبي: لا توجد أموال حقيقية ولا يُخصم أي مبلغ في أي من الخيارين. التأجيل ينهي هذه المحاولة دون شراء.</p>

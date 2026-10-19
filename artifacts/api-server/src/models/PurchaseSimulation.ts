@@ -14,6 +14,8 @@ const purchaseSimulationSchema = new Schema(
     awareness: {
       isNecessary: { type: Boolean },
       fitsBudget: { type: Boolean },
+      stillWantsTomorrow: { type: Boolean },
+      understandsBudgetImpact: { type: Boolean },
     },
   },
   { timestamps: true },

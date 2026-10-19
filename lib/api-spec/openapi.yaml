@@ -181,7 +181,7 @@ paths:
     post:
       operationId: decidePurchaseSimulation
       tags: [financial-shield]
-      description: Postpone at any time, or continue only after the saved cooldown and both awareness answers. A terminal decision cannot be changed. No real charge.
+      description: Postpone at any time, or continue only after the saved cooldown and all three awareness answers. Either boolean answer is accepted. A terminal decision cannot be changed. No real charge.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, pattern: "^[a-fA-F0-9]{24}$" } }
       requestBody:
@@ -365,7 +365,13 @@ components:
           description: Answer to whether this purchase is a current need; either answer is accepted
         fitsBudget:
           type: boolean
-          description: Answer to whether this purchase fits the planned budget; either answer is accepted
+          description: Legacy budget answer retained for compatibility with historical clients; does not replace the three current answers
+        stillWantsTomorrow:
+          type: boolean
+          description: Whether the user expects the same desire and need tomorrow morning; required for continuation, either answer accepted
+        understandsBudgetImpact:
+          type: boolean
+          description: Reflection on budget impact and possible regret; required for continuation, either answer accepted
     ApiError:
       type: object
       properties:
