@@ -47,6 +47,9 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Gotchas
 
+- `pnpm --filter @workspace/api-server test` runs the offline test suite; database and API integration checks remain opt-in.
+- `pnpm --filter @workspace/api-server test:models` checks account/card/transaction validation without a database.
+- `pnpm --filter @workspace/api-server test:models:db` checks actual MongoDB duplicate-card rejection and invalid saves in isolated temporary collections, which it removes afterward.
 - `node --experimental-strip-types --test artifacts/api-server/tests/demo-account.test.mjs` checks insert-only demo initialization and error handling without database writes.
 - `RUN_DEMO_DB_TESTS=1 node --experimental-strip-types --test artifacts/api-server/tests/demo-persistence.test.mjs` checks concurrent initialization and persistence in MongoDB using temporary isolated collections that it removes afterward.
 - `node --experimental-strip-types --test artifacts/api-server/tests/purchase-protection.test.mjs` checks daily interval and timezone boundaries.
