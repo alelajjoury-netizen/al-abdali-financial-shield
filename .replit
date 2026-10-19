@@ -20,6 +20,10 @@ author = "agent"
 task = "workflow.run"
 args = "financial-models"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "purchase-cooldown-ui"
+
 [[workflows.workflow]]
 name = "financial-models"
 author = "agent"
@@ -27,6 +31,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/api-server test:models"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "purchase-cooldown-ui"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/financial-shield test:ui:types && pnpm --filter @workspace/financial-shield test:ui"
 
 [workflows.workflow.metadata]
 isValidation = true

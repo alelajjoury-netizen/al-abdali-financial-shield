@@ -47,6 +47,8 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Gotchas
 
+- `pnpm --filter @workspace/financial-shield test:ui` runs isolated Chromium cooldown regressions (real reloads and two windows, mocked API, no database writes). See `artifacts/financial-shield/tests/README.md` for setup and coverage.
+- `pnpm --filter @workspace/financial-shield test:ui:types` typechecks the UI tests and their API fixtures.
 - `pnpm --filter @workspace/api-server test` runs the offline test suite; database and API integration checks remain opt-in.
 - `pnpm --filter @workspace/api-server test:models` checks account/card/transaction validation without a database.
 - `pnpm --filter @workspace/api-server test:models:db` checks actual MongoDB duplicate-card rejection and invalid saves in isolated temporary collections, which it removes afterward.
