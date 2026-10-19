@@ -153,7 +153,7 @@ export default function HomePage() {
         <div className="brand" data-testid="brand-financial-shield">
           <div className="brand-mark"><ShieldCheck size={20} strokeWidth={2} /></div>
           <div>
-            <div className="brand-title">دِرع الأمان المالي</div>
+            <div className="brand-title">بنك العبدلي الدولي</div>
             <div className="brand-caption">مساحة آمنة لقراراتك المالية</div>
           </div>
         </div>
@@ -163,7 +163,7 @@ export default function HomePage() {
       <main className="page-wrap">
         <section className="welcome-row reveal" aria-label="ترحيب" id="section-overview">
           <div>
-            <h1 data-testid="text-welcome">مرحباً، {isLoading ? '...' : (overview?.account.displayName || 'بك')}</h1>
+            <h1 data-testid="text-welcome">مرحباً، {isLoading ? '...' : (overview?.account.displayName === 'مستخدم الدرع' ? 'عبدالرحمن' : overview?.account.displayName || 'بك')}</h1>
             <p>نظرة هادئة على حسابك ومحاولات الشراء التجريبية.</p>
           </div>
           <div className="today-date">{new Intl.DateTimeFormat('ar-KW', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</div>
@@ -222,7 +222,7 @@ export default function HomePage() {
             </div>}
           <div className="card-bottom">
             <div>
-              {overview && <><div className="card-holder-label">حامل البطاقة</div><div className="card-holder">{overview.virtualCard.holderName}</div></>}
+              {overview && <><div className="card-holder-label">حامل البطاقة</div><div className="card-holder">{overview.virtualCard.holderName === 'SAFETY SHIELD DEMO' ? 'ABDULRAHMAN ALMUTAIRI' : overview.virtualCard.holderName}</div></>}
             </div>
             <div style={{ display: 'grid', justifyItems: 'end', gap: 6 }}>
               {overview && <span className="card-status">{readableCardStatus(overview.virtualCard.status)}</span>}
