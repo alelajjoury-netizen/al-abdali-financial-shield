@@ -53,7 +53,9 @@ test('a lost creation response survives reload and retry keeps the key, record a
   expect(api.purchase!.cooldownEndsAt).toBe(original.cooldownEndsAt);
   await expect(page.getByTestId(`row-simulation-${ID}`)).toHaveCount(1);
   await expect(page.getByTestId(`cooldown-${ID}`)).toHaveCount(1);
-  await expect(page.getByTestId(`timer-${ID}`)).toHaveText('00:40');
+  // Retrying and rendering consume real browser time; the saved deadline above
+  // is exact, but this display may already have ticked after the response.
+  await expect(page.getByTestId(`timer-${ID}`)).toHaveText(/^00:(?:3\d|40)$/);
   await expect(page.getByTestId('input-merchant-name')).toBeEnabled();
   await expect(page.getByTestId('input-merchant-name')).toHaveValue('');
   // A successful submission followed by the same intentional purchase gets a fresh key.
@@ -66,6 +68,90 @@ test('a lost creation response survives reload and retry keeps the key, record a
 });
 
 for (const action of ['continue', 'postpone'] as const) {
+  test(`a prepared stale creation reply cannot reopen cooldown after another window's ${action}`, async ({ page, context, api }) => {
+    let releaseCreation!: () => void;
+    let releaseDashboard!: () => void;
+    api.holdCreationResponse = new Promise<void>((resolve) => { releaseCreation = resolve; });
+    await openHome(page, api);
+    try {
+      await page.getByTestId('input-merchant-name').fill('متجر الرد المتأخر');
+      await page.getByTestId('input-purchase-amount').fill('12.5');
+      await page.getByTestId('button-submit-simulation').click();
+      await expect.poll(() => api.preparedCreationResponses.length).toBe(1);
+      const staleReply = { ...api.preparedCreationResponses[0] };
+      expect(staleReply.status).toBe('cooling_down');
+      expect(staleReply.decidedAt).toBeNull();
+      await expect(page.getByTestId('button-submit-simulation')).toBeDisabled();
+      const request = { ...api.creations[0] };
+
+      const second = await context.newPage();
+      await openHome(second, api);
+      if (action === 'continue') {
+        await advance(second, api, 60_000);
+        await answerNo(second);
+      } else {
+        await expect(second.getByTestId(`continue-${ID}`)).toBeDisabled();
+      }
+      await second.getByTestId(`${action}-${ID}`).click();
+      const label = action === 'continue' ? 'محاكاة مسجلة' : 'تم تأجيل الشراء';
+      await expect(second.getByTestId(`row-simulation-${ID}`)).toContainText(label);
+      const finalPurchase = { ...api.purchase! };
+      const assertFinal = async () => {
+        await expect(page.getByTestId(`row-simulation-${ID}`)).toHaveCount(1);
+        await expect(page.getByTestId(`row-simulation-${ID}`)).toContainText(label);
+        await expect(page.getByRole('region', { name: 'المحاولات قيد التهدئة' })).toHaveCount(0);
+        for (const prefix of ['cooldown', 'timer', 'question-need', 'question-budget', 'continue', 'postpone']) {
+          await expect(page.getByTestId(`${prefix}-${ID}`)).toHaveCount(0);
+        }
+      };
+      // First let polling deliver the final state to the creating window.
+      await advance(page, api, 31_000);
+      await assertFinal();
+      // No subsequent GET may conceal a regression from the late POST reply.
+      api.holdDashboard = new Promise<void>((resolve) => { releaseDashboard = resolve; });
+      const reads = api.dashboardReads;
+      const responsePromise = page.waitForResponse((response) =>
+        response.url().endsWith('/api/purchases/simulate') && response.request().method() === 'POST');
+      releaseCreation();
+      const response = await responsePromise;
+      expect(response.status()).toBe(201);
+      expect(await response.json()).toEqual(staleReply);
+      expect(staleReply.status).not.toBe(finalPurchase.status);
+      await expect.poll(() => api.dashboardReads).toBeGreaterThan(reads);
+      await assertFinal();
+
+      api.holdDashboard = null;
+      releaseDashboard();
+      await expect(page.getByTestId('button-submit-simulation')).toBeEnabled();
+      await assertFinal();
+      await expect(page.getByTestId('message-form-success')).toContainText(
+        action === 'continue' ? 'المحاكاة محفوظة' : 'استُعيدت المحاولة المؤجلة نفسها');
+      await expect(page.getByTestId('message-form-error')).toHaveCount(0);
+      expect(await page.evaluate((key) => sessionStorage.getItem(key), STORAGE_KEY)).toBeNull();
+      await expect(page.getByTestId('input-merchant-name')).toHaveValue('');
+      await expect(page.getByTestId('input-purchase-amount')).toHaveValue('');
+
+      await advance(page, api, 61_000);
+      await assertFinal();
+      await page.reload();
+      await expect(page.getByTestId('text-welcome')).toContainText('حساب الاختبار');
+      await assertFinal();
+      expect(api.creations).toEqual([request]);
+      expect(api.creationCount).toBe(1);
+      expect(api.purchasesByKey.size).toBe(1);
+      expect(api.purchase).toEqual(finalPurchase);
+      expect(api.purchase!.cooldownEndsAt).toBe(staleReply.cooldownEndsAt);
+      expect(api.decisions).toEqual(action === 'continue'
+        ? [{ action, isNecessary: false, fitsBudget: false }] : [{ action }]);
+      expect(api.dashboard().pendingSimulations).toEqual([]);
+    } finally {
+      api.holdCreationResponse = null;
+      releaseCreation();
+      api.holdDashboard = null;
+      releaseDashboard?.();
+    }
+  });
+
   test(`retrying a lost creation response after another window's ${action} restores only the final decision`, async ({ page, context, api }) => {
     api.lostCreationResponse = true;
     await openHome(page, api);

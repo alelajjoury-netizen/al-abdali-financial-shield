@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCreatePurchaseSimulation, useGetDashboard, getGetDashboardQueryKey } from '@workspace/api-client-react';
+import { useCreatePurchaseSimulation, useGetDashboard, getGetDashboardQueryKey, type Dashboard, type PurchaseSimulation } from '@workspace/api-client-react';
 import { AlertCircle, ArrowUpLeft, Check, CircleHelp, Clock3, CreditCard, LockKeyhole, ReceiptText, ShieldCheck, Store } from 'lucide-react';
 import { ProtectionSettingsPanel } from '@/components/protection-settings';
 import { PurchaseCooldown } from '@/components/purchase-cooldown';
@@ -32,6 +32,14 @@ function readableCardStatus(status: string) {
   return status;
 }
 
+function reconcileCreation(purchase: PurchaseSimulation, dashboard: Dashboard | undefined) {
+  const known = dashboard?.recentSimulations.find((item) => item.id === purchase.id);
+  // A creation response can be serialized before another window saves a
+  // decision, then delivered after polling has already supplied that decision.
+  return purchase.status === 'cooling_down' && known && known.status !== 'cooling_down'
+    ? known : purchase;
+}
+
 export default function HomePage() {
   const queryClient = useQueryClient();
   const [restored] = useState(restorePurchaseRequest);
@@ -43,14 +51,16 @@ export default function HomePage() {
   const createSimulation = useCreatePurchaseSimulation({
     mutation: {
       onSuccess: (purchase) => {
-        queryClient.setQueryData(getGetDashboardQueryKey(), (previous: import('@workspace/api-client-react').Dashboard | undefined) =>
-          previous ? {
+        queryClient.setQueryData<Dashboard>(getGetDashboardQueryKey(), (previous) => {
+          const resolved = reconcileCreation(purchase, previous);
+          return previous ? {
             ...previous,
-            recentSimulations: [purchase, ...previous.recentSimulations.filter((p) => p.id !== purchase.id)].slice(0, 10),
-            pendingSimulations: purchase.status === 'cooling_down'
-              ? [purchase, ...previous.pendingSimulations.filter((p) => p.id !== purchase.id)]
+            recentSimulations: [resolved, ...previous.recentSimulations.filter((p) => p.id !== purchase.id)].slice(0, 10),
+            pendingSimulations: resolved.status === 'cooling_down'
+              ? [resolved, ...previous.pendingSimulations.filter((p) => p.id !== purchase.id)]
               : previous.pendingSimulations.filter((p) => p.id !== purchase.id),
-          } : previous);
+          } : previous;
+        });
         return queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
       },
     },
@@ -95,6 +105,7 @@ export default function HomePage() {
       { data: request },
       {
         onSuccess: (purchase) => {
+          const resolved = reconcileCreation(purchase, queryClient.getQueryData<Dashboard>(getGetDashboardQueryKey()));
           try {
             clearPurchaseRequest();
             setPendingRequest(null);
@@ -104,9 +115,9 @@ export default function HomePage() {
           }
           setMerchantName('');
           setAmount('');
-          setSuccessMessage(purchase.status === 'cooling_down'
+          setSuccessMessage(resolved.status === 'cooling_down'
             ? 'المحاولة محفوظة بموعد التهدئة الأصلي. يمكنك تأجيل الشراء الآن أو الانتظار للإجابة عن أسئلة التوعية.'
-            : purchase.status === 'postponed' ? 'استُعيدت المحاولة المؤجلة نفسها. لم يتم إنشاء محاولة أخرى أو خصم أموال.'
+            : resolved.status === 'postponed' ? 'استُعيدت المحاولة المؤجلة نفسها. لم يتم إنشاء محاولة أخرى أو خصم أموال.'
             : 'المحاكاة محفوظة. لم يتم إنشاء نسخة مكررة أو خصم أي مبلغ من رصيدك.');
         },
         onError: () => setFormError('لم نتلقَّ تأكيدًا لحفظ المحاولة. أعيدي إرسال الطلب نفسه لاستعادتها دون سجل أو تهدئة جديدة.'),

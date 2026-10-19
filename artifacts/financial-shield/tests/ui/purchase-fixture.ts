@@ -23,6 +23,9 @@ export class PurchaseApi {
   creations: PurchaseSimulationInput[] = [];
   lostCreationResponse = false;
   holdCreation: Promise<void> | null = null;
+  // Unlike holdCreation (before persistence), delay an already serialized reply.
+  holdCreationResponse: Promise<void> | null = null;
+  preparedCreationResponses: PurchaseSimulation[] = [];
   creationCount = 0;
   purchasesByKey = new Map<string, PurchaseSimulation>();
   unexpectedRequests: string[] = [];
@@ -100,7 +103,10 @@ export const test = base.extend<{ api: PurchaseApi }>({
           api.purchase = existing;
         }
         if (api.lostCreationResponse) return route.abort('failed');
-        return route.fulfill({ status: existing ? 200 : 201, json: api.snapshot() });
+        const response = api.snapshot();
+        api.preparedCreationResponses.push(response);
+        if (api.holdCreationResponse) await api.holdCreationResponse;
+        return route.fulfill({ status: existing ? 200 : 201, json: response });
       }
       if (path === `/api/purchases/${ID}/decision` && method === 'POST') {
         const decision: PurchaseDecisionInput = request.postDataJSON();

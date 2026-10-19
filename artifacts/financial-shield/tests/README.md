@@ -66,6 +66,11 @@ pnpm --filter @workspace/financial-shield test:ui protection-settings.spec.ts
   shows the saved final decision once with the correct confirmation. Held dashboard
   reads verify that the retry itself removes pending UI; passing the original
   deadline and reloading never reopens a timer or awareness questions.
+- An already serialized successful creation reply can arrive with an old
+  `cooling_down` state after another window saves a decision. Once polling has
+  delivered that decision, releasing the stale reply with dashboard reads held
+  cannot overwrite it or reopen actionable controls. Both final decisions
+  survive refetch, the original deadline, and reload without another creation.
 
 - Create a purchase and reload during cooldown: remaining time is neither reset
   nor skipped. A device wall-clock jump cannot bypass the monotonic countdown.
