@@ -12,12 +12,10 @@ export async function connectMongoDB(): Promise<void> {
 
   connectionPromise ??= mongoose.connect(uri, {
     serverSelectionTimeoutMS: 5000,
+  }).finally(() => {
+    // Cache only an in-flight attempt, not a previously successful connection.
+    connectionPromise = undefined;
   });
 
-  try {
-    await connectionPromise;
-  } catch (error) {
-    connectionPromise = undefined;
-    throw error;
-  }
+  await connectionPromise;
 }
