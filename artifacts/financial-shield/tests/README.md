@@ -1,4 +1,4 @@
-# Purchase cooldown UI regression tests
+# Isolated UI regression tests
 
 Run from the workspace root:
 
@@ -29,7 +29,31 @@ The actual home page, cooldown component, generated fetch/hooks, and React Query
 cache run in Chromium. Reloads are real document reloads; second-window decisions
 use a second page in the same browser context and the real decision buttons.
 
+The protection-settings tests use a separate settings-only API fixture. Reads and
+writes, including failures and delayed responses, stay in memory. Unexpected
+requests (including purchase creation) fail the test. To run only these tests:
+
+```sh
+pnpm --filter @workspace/financial-shield test:ui protection-settings.spec.ts
+```
+
 ## Coverage
+
+### Protection settings
+
+- Initial loading offers no editable defaults; HTTP and network failures show an
+  error, and explicit reload retrieves the saved values without a write.
+- HTTP and network save failures retain all four edited fields, show no success
+  or false dashboard shield state, and retry sends the same typed payload.
+  Confirmed saves update the shield status and survive a real page reload.
+- A held save disables save, cancel, and every field; additional pointer clicks
+  do not duplicate writes, and no success is announced until confirmation.
+- Polling refreshes an untouched form without enabling save. Polling cannot
+  overwrite a local draft; cancelling reveals the latest server values.
+- A real save from a second window reaches the API fixture without overwriting
+  the first window's unsaved edits when it polls.
+
+### Purchase cooldown and retries
 
 - Lost creation responses retain their request key across reload and retry; recovery
   keeps the original deadline and deduplicates the UI. Double submissions are blocked;
