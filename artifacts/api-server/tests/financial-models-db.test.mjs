@@ -10,7 +10,7 @@ import { FinancialTransactionModel } from "../src/models/FinancialTransaction.ts
 // Opt-in only; never use the application's own collections or demo identifiers.
 test("MongoDB rejects invalid creates and updates and enforces one virtual card per account", {
   skip: process.env.RUN_MODEL_DB_TESTS !== "1",
-  timeout: 60_000,
+  timeout: 120_000,
 }, async (t) => {
   const suffix = randomUUID().replaceAll("-", "");
   const models = [AccountModel, VirtualCardModel, FinancialTransactionModel].map((model) =>
@@ -55,6 +55,52 @@ test("MongoDB rejects invalid creates and updates and enforces one virtual card 
     const saved = await Transactions.create(transaction);
     assert.equal((await Transactions.findById(saved._id)).amount, 0.001);
     assert.equal(await Accounts.countDocuments(), 2);
+
+    await t.test("computed money updates and pipelines leave entire stored records unchanged", async () => {
+      for (const [Model, id, fields] of [
+        [Accounts, account._id, ["balance", "limit"]],
+        [Transactions, saved._id, ["amount"]],
+      ]) {
+        const original = await Model.collection.findOne({ _id: id });
+        for (const field of fields) {
+          const updates = [
+            { $inc: { [field]: -100 } }, // negative final result
+            { $inc: { [field]: 0.0001 } }, // excess final precision
+            { $inc: { [field]: 1_000_001 } }, // exceeds upper bound
+            { $inc: { [field]: 0.001 } }, // policy also rejects safe arithmetic
+            { $mul: { [field]: -1 } },
+            { $mul: { [field]: 0.0001 } },
+            { $min: { [field]: -1 } },
+            { $max: { [field]: 1_000_001 } },
+            { $rename: { [field]: "otherAmount" } },
+            { $rename: { otherAmount: field } },
+            [{ $set: { [field]: -1 } }],
+            [{ $set: { [field]: { $add: [`$${field}`, 0.0001] } } }],
+            [{ $replaceWith: { [field]: -1 } }],
+            [{ $unset: field }],
+          ];
+          for (const update of updates) {
+            for (const runValidators of [true, false]) {
+              for (const method of ["updateOne", "updateMany", "findOneAndUpdate"]) {
+                await assert.rejects(Model[method]({ _id: id }, update, {
+                  runValidators, updatePipeline: true,
+                }), mongoose.Error.ValidationError);
+              }
+            }
+            for (const method of ["updateOne", "updateMany"]) {
+              // A valid earlier operation must not be committed, even unordered.
+              for (const ordered of [true, false]) {
+                await assert.rejects(Model.bulkWrite([
+                  { updateOne: { filter: { _id: id }, update: { $set: { [field]: 2 } } } },
+                  { [method]: { filter: { _id: id }, update } },
+                ], { ordered, skipValidation: true }), mongoose.Error.ValidationError);
+              }
+            }
+            assert.deepEqual(await Model.collection.findOne({ _id: id }), original);
+          }
+        }
+      }
+    });
 
     await t.test("missing accounts/cards and cross-account cards never persist", async () => {
       const missingId = new mongoose.Types.ObjectId();

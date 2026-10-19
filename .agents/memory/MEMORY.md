@@ -4,3 +4,4 @@
 - [Purchase response ordering](purchase-response-ordering.md) — successful creation replies can predate final decisions already observed through polling.
 - [MongoDB test fixtures](mongodb-test-fixtures.md) — preserve BSON prototypes when copying isolated model fixtures.
 - [Mongoose write hooks](mongoose-write-hooks.md) — insertMany hooks omit options/session in Mongoose 9.11; plan explicit session propagation for transactional writes.
+- [Computed money writes](computed-money-writes.md) — reject computed updates until a real use case requires atomic result-checked arithmetic.

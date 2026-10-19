@@ -1,6 +1,7 @@
 import mongoose, { Schema, type InferSchemaType } from "mongoose";
 import "./VirtualCard.ts";
 import { protectFinancialReferences } from "./financial-references.ts";
+import { protectFinancialAmountUpdates } from "./financial-amount-updates.ts";
 
 function hasAtMostThreeDecimalPlaces(value: number): boolean {
   return Number.isFinite(value) && Math.abs(value * 1000 - Math.round(value * 1000)) < 1e-8;
@@ -44,6 +45,7 @@ financialTransactionSchema.index({ accountId: 1, createdAt: -1 });
 financialTransactionSchema.index({ accountId: 1, status: 1, createdAt: -1 });
 financialTransactionSchema.index({ cardId: 1, createdAt: -1 });
 protectFinancialReferences(financialTransactionSchema, ["accountId", "cardId"]);
+protectFinancialAmountUpdates(financialTransactionSchema, ["amount"]);
 
 // Query updates do not run schema validators by default in Mongoose.
 financialTransactionSchema.pre(["updateOne", "findOneAndUpdate"], function () {

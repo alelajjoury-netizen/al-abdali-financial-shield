@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
-    "test:models": "node --experimental-strip-types --test tests/financial-models.test.mjs",
+    "test:models": "node --experimental-strip-types --test tests/financial-models.test.mjs tests/financial-amount-updates.test.mjs",
     "test:models:db": "RUN_MODEL_DB_TESTS=1 node --experimental-strip-types --test tests/financial-models-db.test.mjs",
     "test:mongodb:db": "RUN_MONGODB_DB_TESTS=1 node --experimental-strip-types --test tests/mongodb-db.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
