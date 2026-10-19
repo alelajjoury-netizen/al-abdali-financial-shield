@@ -1,4 +1,6 @@
 import mongoose, { Schema, type InferSchemaType } from "mongoose";
+import "./Account.ts";
+import { protectFinancialReferences } from "./financial-references.ts";
 
 const virtualCardSchema = new Schema(
   {
@@ -22,6 +24,7 @@ const virtualCardSchema = new Schema(
 
 // The MVP provides a single default virtual card for each account.
 virtualCardSchema.index({ accountId: 1 }, { unique: true });
+protectFinancialReferences(virtualCardSchema, ["accountId"]);
 
 // Query updates do not run schema validators by default in Mongoose.
 virtualCardSchema.pre(["updateOne", "findOneAndUpdate"], function () {

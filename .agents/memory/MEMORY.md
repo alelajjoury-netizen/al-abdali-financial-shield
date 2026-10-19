@@ -2,3 +2,4 @@
 - [Browser test clocks](browser-test-clocks.md) — keep query notifications running and share one clock across windows in cooldown tests.
 - [Purchase retry scope](purchase-retry-scope.md) — uncertain requests belong to their originating tab; independent windows must not silently share an attempt.
 - [MongoDB test fixtures](mongodb-test-fixtures.md) — preserve BSON prototypes when copying isolated model fixtures.
+- [Mongoose write hooks](mongoose-write-hooks.md) — insertMany hooks omit options/session in Mongoose 9.11; plan explicit session propagation for transactional writes.

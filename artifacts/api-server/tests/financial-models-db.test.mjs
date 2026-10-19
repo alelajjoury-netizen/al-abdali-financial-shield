@@ -17,6 +17,10 @@ test("MongoDB rejects invalid creates and updates and enforces one virtual card 
     mongoose.model(`ModelTest${model.modelName}${suffix}`, model.schema.clone(),
       `test_model_${model.modelName.toLowerCase()}_${suffix}`));
   const [Accounts, Cards, Transactions] = models;
+  // Reference checks must use these isolated models, never shared demo data.
+  Cards.schema.path("accountId").options.ref = Accounts.modelName;
+  Transactions.schema.path("accountId").options.ref = Accounts.modelName;
+  Transactions.schema.path("cardId").options.ref = Cards.modelName;
   try {
     await connectMongoDB();
     await Promise.all(models.map((model) => model.init()));
@@ -37,7 +41,7 @@ test("MongoDB rejects invalid creates and updates and enforces one virtual card 
     }
     // The MVP index allows one card total, even if a second is not marked default.
     await assert.rejects(Cards.create({ ...card, isDefault: false }), { code: 11000 });
-    await Cards.create({ ...card, accountId: secondAccount._id });
+    const otherCard = await Cards.create({ ...card, accountId: secondAccount._id });
     assert.equal(await Cards.countDocuments({ accountId: account._id }), 1);
     assert.equal(await Cards.countDocuments(), 2);
     const transaction = {
@@ -51,6 +55,46 @@ test("MongoDB rejects invalid creates and updates and enforces one virtual card 
     const saved = await Transactions.create(transaction);
     assert.equal((await Transactions.findById(saved._id)).amount, 0.001);
     assert.equal(await Accounts.countDocuments(), 2);
+
+    await t.test("missing accounts/cards and cross-account cards never persist", async () => {
+      const missingId = new mongoose.Types.ObjectId();
+      const assertUnchanged = async (Model, operation, field) => {
+        const before = await Model.collection.find().toArray();
+        await assert.rejects(operation, (error) => {
+          assert.ok(error instanceof mongoose.Error.ValidationError);
+          assert.ok(error.errors[field]);
+          return true;
+        });
+        assert.deepEqual(await Model.collection.find().toArray(), before);
+      };
+      await assertUnchanged(Cards, () => Cards.create({ ...card, accountId: missingId }), "accountId");
+      for (const patch of [
+        { accountId: missingId }, { cardId: missingId }, { cardId: otherCard._id },
+      ]) {
+        const invalid = { ...transaction, ...patch };
+        const field = "accountId" in patch ? "accountId" : "cardId";
+        await assertUnchanged(Transactions, () => Transactions.create(invalid), field);
+        await assertUnchanged(Transactions, () => Transactions.insertMany(
+          [transaction, invalid], { ordered: false }), field);
+        await assertUnchanged(Transactions, () => Transactions.bulkWrite([
+          { insertOne: { document: transaction } }, { insertOne: { document: invalid } },
+        ], { ordered: false }), field);
+        await assertUnchanged(Transactions, () => Transactions.updateOne(
+          { _id: new mongoose.Types.ObjectId() }, { $setOnInsert: invalid }, { upsert: true }), field);
+      }
+      for (const method of ["updateOne", "updateMany", "findOneAndUpdate"]) {
+        await assertUnchanged(Transactions, () => Transactions[method](
+          { _id: saved._id }, { $set: { cardId: otherCard._id } }), "cardId");
+        await assertUnchanged(Cards, () => Cards[method](
+          { _id: successes[0].value._id }, { $set: { accountId: missingId } }), "accountId");
+      }
+      const edited = await Transactions.findById(saved._id);
+      edited.cardId = otherCard._id;
+      await assertUnchanged(Transactions, () => edited.save(), "cardId");
+      const editedCard = await Cards.findById(successes[0].value._id);
+      editedCard.accountId = secondAccount._id;
+      await assertUnchanged(Cards, () => editedCard.save(), "accountId");
+    });
 
     const updateCases = [
       {

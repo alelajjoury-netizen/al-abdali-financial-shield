@@ -15,6 +15,7 @@ test("MongoDB preserves account/card edits and prevents concurrent duplicate see
   const suffix = randomUUID().replaceAll("-", "");
   const Accounts = mongoose.model(`TestAccounts${suffix}`, AccountModel.schema.clone(), `test_accounts_${suffix}`);
   const Cards = mongoose.model(`TestCards${suffix}`, VirtualCardModel.schema.clone(), `test_cards_${suffix}`);
+  Cards.schema.path("accountId").options.ref = Accounts.modelName;
   try {
     await connectMongoDB();
     for (const method of ["findById", "findOneAndUpdate"]) {

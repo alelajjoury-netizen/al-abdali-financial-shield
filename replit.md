@@ -51,6 +51,7 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 - `pnpm --filter @workspace/financial-shield test:ui:types` typechecks the UI tests and their API fixtures.
 - `pnpm --filter @workspace/api-server test` runs the offline test suite; database and API integration checks remain opt-in.
 - `pnpm --filter @workspace/api-server test:models` checks account/card/transaction validation without a database.
+- `node --experimental-strip-types --test artifacts/api-server/tests/financial-references.test.mjs` checks reference existence, card ownership, and write-path bypass rejection without database writes. Financial ownership is fixed at creation; use insert-only upserts and field updates, not replacements or pipeline updates.
 - `pnpm --filter @workspace/api-server test:models:db` checks actual MongoDB duplicate-card rejection and invalid saves in isolated temporary collections, which it removes afterward.
 - `node --experimental-strip-types --test artifacts/api-server/tests/demo-account.test.mjs` checks insert-only demo initialization and error handling without database writes.
 - `node --experimental-strip-types --test artifacts/api-server/tests/dashboard.test.mjs` checks the real dashboard HTTP route with isolated model fixtures, saved account/card edits, the response shape, and database-failure 503 responses without accessing shared demo data.
