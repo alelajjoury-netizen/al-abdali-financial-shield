@@ -53,6 +53,7 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 - `pnpm --filter @workspace/api-server test:models` checks account/card/transaction validation without a database.
 - `pnpm --filter @workspace/api-server test:models:db` checks actual MongoDB duplicate-card rejection and invalid saves in isolated temporary collections, which it removes afterward.
 - `node --experimental-strip-types --test artifacts/api-server/tests/demo-account.test.mjs` checks insert-only demo initialization and error handling without database writes.
+- `node --experimental-strip-types --test artifacts/api-server/tests/dashboard.test.mjs` checks the real dashboard HTTP route with isolated model fixtures, saved account/card edits, the response shape, and database-failure 503 responses without accessing shared demo data.
 - `RUN_DEMO_DB_TESTS=1 node --experimental-strip-types --test artifacts/api-server/tests/demo-persistence.test.mjs` checks concurrent initialization and persistence in MongoDB using temporary isolated collections that it removes afterward.
 - `node --experimental-strip-types --test artifacts/api-server/tests/purchase-protection.test.mjs` checks daily interval and timezone boundaries.
 - `RUN_PURCHASE_DB_TESTS=1 node --experimental-strip-types --test artifacts/api-server/tests/purchase-idempotency-db.test.mjs` checks concurrent retry uniqueness and replay after reconnect in an isolated temporary MongoDB collection, removed afterward.
