@@ -45,6 +45,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /protection-settings:
+    get:
+      operationId: getProtectionSettings
+      tags: [financial-shield]
+      summary: Read the shared demo account protection settings
+      responses:
+        "200":
+          description: Saved settings or initial defaults
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProtectionSettings"
+        "503":
+          description: Settings storage is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    put:
+      operationId: updateProtectionSettings
+      tags: [financial-shield]
+      summary: Save all protection settings for the shared demo account
+      description: Configures the shield only; does not execute payments or enforce purchase cooldowns.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProtectionSettings"
+      responses:
+        "200":
+          description: Saved settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProtectionSettings"
+        "400":
+          description: Invalid settings, including identical start and end hours
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Settings storage is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /purchases/simulate:
     post:
       operationId: createPurchaseSimulation
@@ -78,6 +126,30 @@ paths:
                 $ref: "#/components/schemas/ApiError"
 components:
   schemas:
+    ProtectionSettings:
+      type: object
+      additionalProperties: false
+      description: Daily local-clock hours, start inclusive and end exclusive. Start greater than end means overnight. Start and end must differ. Shared demo settings, not per-user.
+      required: [enabled, blockStartHour, blockEndHour, cooldownMinutes]
+      properties:
+        enabled:
+          type: boolean
+          default: false
+        blockStartHour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          default: 22
+        blockEndHour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          default: 7
+        cooldownMinutes:
+          type: integer
+          minimum: 1
+          maximum: 120
+          default: 10
     HealthStatus:
       type: object
       properties:

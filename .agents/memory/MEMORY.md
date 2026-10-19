@@ -1,0 +1,1 @@
+- [Protection scope](protection-scope.md) — shared demo settings and local-clock interval decisions for later purchase enforcement.

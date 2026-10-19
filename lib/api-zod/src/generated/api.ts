@@ -45,6 +45,78 @@ export const GetDashboardResponse = zod.object({
 
 
 /**
+ * @summary Read the shared demo account protection settings
+ */
+export const getProtectionSettingsResponseEnabledDefault = false;
+export const getProtectionSettingsResponseBlockStartHourDefault = 22;
+export const getProtectionSettingsResponseBlockStartHourMin = 0;
+export const getProtectionSettingsResponseBlockStartHourMax = 23;
+
+export const getProtectionSettingsResponseBlockEndHourDefault = 7;
+export const getProtectionSettingsResponseBlockEndHourMin = 0;
+export const getProtectionSettingsResponseBlockEndHourMax = 23;
+
+export const getProtectionSettingsResponseCooldownMinutesDefault = 10;
+export const getProtectionSettingsResponseCooldownMinutesMax = 120;
+
+
+
+export const GetProtectionSettingsResponse = zod.object({
+  "enabled": zod.boolean().default(getProtectionSettingsResponseEnabledDefault),
+  "blockStartHour": zod.number().int().min(getProtectionSettingsResponseBlockStartHourMin).max(getProtectionSettingsResponseBlockStartHourMax).default(getProtectionSettingsResponseBlockStartHourDefault),
+  "blockEndHour": zod.number().int().min(getProtectionSettingsResponseBlockEndHourMin).max(getProtectionSettingsResponseBlockEndHourMax).default(getProtectionSettingsResponseBlockEndHourDefault),
+  "cooldownMinutes": zod.number().int().min(1).max(getProtectionSettingsResponseCooldownMinutesMax).default(getProtectionSettingsResponseCooldownMinutesDefault)
+}).describe('Daily local-clock hours, start inclusive and end exclusive. Start greater than end means overnight. Start and end must differ. Shared demo settings, not per-user.')
+
+
+/**
+ * Configures the shield only; does not execute payments or enforce purchase cooldowns.
+ * @summary Save all protection settings for the shared demo account
+ */
+export const updateProtectionSettingsBodyEnabledDefault = false;
+export const updateProtectionSettingsBodyBlockStartHourDefault = 22;
+export const updateProtectionSettingsBodyBlockStartHourMin = 0;
+export const updateProtectionSettingsBodyBlockStartHourMax = 23;
+
+export const updateProtectionSettingsBodyBlockEndHourDefault = 7;
+export const updateProtectionSettingsBodyBlockEndHourMin = 0;
+export const updateProtectionSettingsBodyBlockEndHourMax = 23;
+
+export const updateProtectionSettingsBodyCooldownMinutesDefault = 10;
+export const updateProtectionSettingsBodyCooldownMinutesMax = 120;
+
+
+
+export const UpdateProtectionSettingsBody = zod.object({
+  "enabled": zod.boolean().default(updateProtectionSettingsBodyEnabledDefault),
+  "blockStartHour": zod.number().int().min(updateProtectionSettingsBodyBlockStartHourMin).max(updateProtectionSettingsBodyBlockStartHourMax).default(updateProtectionSettingsBodyBlockStartHourDefault),
+  "blockEndHour": zod.number().int().min(updateProtectionSettingsBodyBlockEndHourMin).max(updateProtectionSettingsBodyBlockEndHourMax).default(updateProtectionSettingsBodyBlockEndHourDefault),
+  "cooldownMinutes": zod.number().int().min(1).max(updateProtectionSettingsBodyCooldownMinutesMax).default(updateProtectionSettingsBodyCooldownMinutesDefault)
+}).describe('Daily local-clock hours, start inclusive and end exclusive. Start greater than end means overnight. Start and end must differ. Shared demo settings, not per-user.')
+
+export const updateProtectionSettingsResponseEnabledDefault = false;
+export const updateProtectionSettingsResponseBlockStartHourDefault = 22;
+export const updateProtectionSettingsResponseBlockStartHourMin = 0;
+export const updateProtectionSettingsResponseBlockStartHourMax = 23;
+
+export const updateProtectionSettingsResponseBlockEndHourDefault = 7;
+export const updateProtectionSettingsResponseBlockEndHourMin = 0;
+export const updateProtectionSettingsResponseBlockEndHourMax = 23;
+
+export const updateProtectionSettingsResponseCooldownMinutesDefault = 10;
+export const updateProtectionSettingsResponseCooldownMinutesMax = 120;
+
+
+
+export const UpdateProtectionSettingsResponse = zod.object({
+  "enabled": zod.boolean().default(updateProtectionSettingsResponseEnabledDefault),
+  "blockStartHour": zod.number().int().min(updateProtectionSettingsResponseBlockStartHourMin).max(updateProtectionSettingsResponseBlockStartHourMax).default(updateProtectionSettingsResponseBlockStartHourDefault),
+  "blockEndHour": zod.number().int().min(updateProtectionSettingsResponseBlockEndHourMin).max(updateProtectionSettingsResponseBlockEndHourMax).default(updateProtectionSettingsResponseBlockEndHourDefault),
+  "cooldownMinutes": zod.number().int().min(1).max(updateProtectionSettingsResponseCooldownMinutesMax).default(updateProtectionSettingsResponseCooldownMinutesDefault)
+}).describe('Daily local-clock hours, start inclusive and end exclusive. Start greater than end means overnight. Start and end must differ. Shared demo settings, not per-user.')
+
+
+/**
  * Saves a purchase simulation without charging money or contacting a bank
  * @summary Record a simulated purchase attempt
  */

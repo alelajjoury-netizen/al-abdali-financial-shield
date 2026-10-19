@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCreatePurchaseSimulation, useGetDashboard, getGetDashboardQueryKey } from '@workspace/api-client-react';
 import { AlertCircle, ArrowUpLeft, Check, CircleHelp, Clock3, CreditCard, LockKeyhole, ReceiptText, ShieldCheck, Store } from 'lucide-react';
+import { ProtectionSettingsPanel } from '@/components/protection-settings';
 
 function formatMoney(amount: number, currency: string) {
   const label = currency === 'KWD' ? 'د.ك' : currency;
@@ -31,7 +32,9 @@ function readableCardStatus(status: string) {
 
 export default function HomePage() {
   const queryClient = useQueryClient();
-  const { data: dashboard, isLoading, isError, refetch } = useGetDashboard();
+  const { data: dashboard, isLoading, isError, refetch } = useGetDashboard({
+    query: { queryKey: getGetDashboardQueryKey(), staleTime: 30_000, refetchInterval: 30_000 },
+  });
   const createSimulation = useCreatePurchaseSimulation({
     mutation: {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }),
@@ -126,8 +129,10 @@ export default function HomePage() {
               <div className="protection-note">تسجيل تجريبي يساعدك على التوقف والتفكير قبل الشراء.</div>
             </div>
           </div>
-          <div className="enabled-state"><i />{dashboard?.protectionEnabled ? 'الحماية مفعّلة' : isLoading ? 'جارٍ التحقق' : 'الحماية غير مفعّلة'}</div>
+          <div className={`enabled-state ${dashboard?.protectionEnabled ? '' : 'is-disabled'}`}><i />{isLoading ? 'جارٍ التحقق' : isError ? 'حالة الحماية غير متاحة' : dashboard?.protectionEnabled ? 'الدرع مفعّل · إعداد تجريبي' : 'الدرع غير مفعّل'}</div>
         </section>
+
+        <ProtectionSettingsPanel />
 
         <section className="content-grid">
           <article className="panel form-panel">

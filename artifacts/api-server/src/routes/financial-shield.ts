@@ -1,28 +1,14 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type IRouter } from "express";
 import {
   CreatePurchaseSimulationBody,
   CreatePurchaseSimulationResponse,
   GetDashboardResponse,
 } from "@workspace/api-zod";
-import { connectMongoDB } from "../lib/mongodb";
+import { databaseReady } from "../lib/database-ready";
+import { readProtectionSettings } from "../models/ProtectionSettings";
 import { PurchaseSimulationModel } from "../models/PurchaseSimulation";
 
 const router: IRouter = Router();
-
-async function databaseReady(req: Request, res: Response): Promise<boolean> {
-  try {
-    await connectMongoDB();
-    return true;
-  } catch {
-    req.log.warn("MongoDB is not configured or is unavailable");
-    res.status(503).json({
-      error: process.env.MONGODB_URI
-        ? "تعذّر الاتصال بقاعدة البيانات. حاول مجددًا بعد قليل."
-        : "يلزم إعداد اتصال MongoDB قبل حفظ محاولات الشراء.",
-    });
-    return false;
-  }
-}
 
 function purchaseResponse(record: {
   _id: { toString(): string };
@@ -49,6 +35,7 @@ router.get("/dashboard", async (req, res): Promise<void> => {
     .sort({ createdAt: -1 })
     .limit(10)
     .lean();
+  const settings = await readProtectionSettings();
 
   res.json(GetDashboardResponse.parse({
     account: {
@@ -61,7 +48,7 @@ router.get("/dashboard", async (req, res): Promise<void> => {
       lastFour: "8492",
       status: "active",
     },
-    protectionEnabled: false,
+    protectionEnabled: settings.enabled,
     recentSimulations: records.map((record) => purchaseResponse(record as Parameters<typeof purchaseResponse>[0])),
   }));
 });

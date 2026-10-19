@@ -5,6 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+/**
+ * Daily local-clock hours, start inclusive and end exclusive. Start greater than end means overnight. Start and end must differ. Shared demo settings, not per-user.
+ */
+export interface ProtectionSettings {
+  enabled: boolean;
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  blockStartHour: number;
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  blockEndHour: number;
+  /**
+     * @minimum 1
+     * @maximum 120
+     */
+  cooldownMinutes: number;
+}
+
 export interface HealthStatus {
   status: string;
 }

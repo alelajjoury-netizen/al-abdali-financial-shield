@@ -23,6 +23,7 @@ import type {
   ApiError,
   Dashboard,
   HealthStatus,
+  ProtectionSettings,
   PurchaseSimulation,
   PurchaseSimulationInput
 } from './api.schemas';
@@ -209,6 +210,172 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
 
 
 
+
+export const getGetProtectionSettingsUrl = () => {
+
+
+
+
+  return `/api/protection-settings`
+}
+
+/**
+ * @summary Read the shared demo account protection settings
+ */
+export const getProtectionSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProtectionSettings> => {
+
+  return customFetch<ProtectionSettings>(getGetProtectionSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProtectionSettingsQueryKey = () => {
+    return [
+    `/api/protection-settings`
+    ] as const;
+    }
+
+
+export const getGetProtectionSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getProtectionSettings>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProtectionSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProtectionSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProtectionSettings>>> = ({ signal }) => getProtectionSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProtectionSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProtectionSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getProtectionSettings>>>
+export type GetProtectionSettingsQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Read the shared demo account protection settings
+ */
+
+export function useGetProtectionSettings<TData = Awaited<ReturnType<typeof getProtectionSettings>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProtectionSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProtectionSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateProtectionSettingsUrl = () => {
+
+
+
+
+  return `/api/protection-settings`
+}
+
+/**
+ * Configures the shield only; does not execute payments or enforce purchase cooldowns.
+ * @summary Save all protection settings for the shared demo account
+ */
+export const updateProtectionSettings = async (protectionSettings: ProtectionSettings, options?: Parameters<typeof customFetch>[1]): Promise<ProtectionSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProtectionSettings>(getUpdateProtectionSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(protectionSettings)
+  }
+);}
+
+
+
+
+
+export const getUpdateProtectionSettingsMutationKey = () => ['updateProtectionSettings'] as const;
+
+export const getUpdateProtectionSettingsMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProtectionSettings>>, TError,UpdateProtectionSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProtectionSettings>>, TError,UpdateProtectionSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateProtectionSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProtectionSettings>>, UpdateProtectionSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateProtectionSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProtectionSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateProtectionSettings>>>
+    export type UpdateProtectionSettingsMutationBody = BodyType<ProtectionSettings>
+    export type UpdateProtectionSettingsMutationError = ErrorType<ApiError>
+    export type UpdateProtectionSettingsMutationVariables = {data: BodyType<ProtectionSettings>}
+
+    /**
+ * @summary Save all protection settings for the shared demo account
+ */
+export const useUpdateProtectionSettings = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProtectionSettings>>, TError,UpdateProtectionSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProtectionSettings>>,
+        TError,
+        UpdateProtectionSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateProtectionSettingsMutationOptions(options));
+    }
 
 export const getCreatePurchaseSimulationUrl = () => {
 

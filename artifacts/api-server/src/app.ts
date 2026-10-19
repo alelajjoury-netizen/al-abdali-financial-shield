@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type ErrorRequestHandler } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -28,6 +28,15 @@ app.use(
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+const jsonInputError: ErrorRequestHandler = (error, _req, res, next) => {
+  if (error?.type === "entity.parse.failed") {
+    res.status(400).json({ error: "أرسل بيانات JSON صحيحة في الطلب." });
+    return;
+  }
+  next(error);
+};
+app.use(jsonInputError);
 
 app.use("/api", router);
 
