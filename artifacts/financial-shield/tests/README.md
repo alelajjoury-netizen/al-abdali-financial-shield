@@ -39,6 +39,20 @@ pnpm --filter @workspace/financial-shield test:ui protection-settings.spec.ts
 
 ## Coverage
 
+### Dashboard account and card
+
+- A dedicated read-only fixture intercepts all API requests with private in-memory
+  account/card data; unexpected requests, including writes, fail the test.
+- The real dashboard polling replaces account name, balance, card holder, last
+  four digits (including leading zeros), and status without remounting. Updated
+  values also survive a real reload.
+- Literal Arabic Kuwaiti amounts verify grouping, currency label, and exactly
+  three decimal places, including trailing zeros. Active/inactive, case-insensitive
+  enabled/disabled aliases, and unrecognized status labels are checked.
+
+Run only these tests with
+`pnpm --filter @workspace/financial-shield test:ui dashboard.spec.ts`.
+
 ### Protection settings
 
 - Initial loading offers no editable defaults; HTTP and network failures show an
