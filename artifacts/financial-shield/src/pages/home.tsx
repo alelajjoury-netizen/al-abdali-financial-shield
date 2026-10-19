@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCreatePurchaseSimulation, useGetDashboard, getGetDashboardQueryKey } from '@workspace/api-client-react';
 import { AlertCircle, ArrowUpLeft, Check, CircleHelp, Clock3, CreditCard, LockKeyhole, ReceiptText, ShieldCheck, Store } from 'lucide-react';
 import { ProtectionSettingsPanel } from '@/components/protection-settings';
 import { PurchaseCooldown } from '@/components/purchase-cooldown';
+import { clearPurchaseRequest, restorePurchaseRequest, savePurchaseRequest } from '@/lib/purchase-request';
 
 function formatMoney(amount: number, currency: string) {
   const label = currency === 'KWD' ? 'د.ك' : currency;
@@ -33,6 +34,9 @@ function readableCardStatus(status: string) {
 
 export default function HomePage() {
   const queryClient = useQueryClient();
+  const [restored] = useState(restorePurchaseRequest);
+  const [pendingRequest, setPendingRequest] = useState(restored.request);
+  const submitting = useRef(false);
   const { data: dashboard, isLoading, isError, refetch } = useGetDashboard({
     query: { queryKey: getGetDashboardQueryKey(), staleTime: 30_000, refetchInterval: 30_000 },
   });
@@ -42,21 +46,24 @@ export default function HomePage() {
         queryClient.setQueryData(getGetDashboardQueryKey(), (previous: import('@workspace/api-client-react').Dashboard | undefined) =>
           previous ? {
             ...previous,
-            recentSimulations: [purchase, ...previous.recentSimulations].slice(0, 10),
+            recentSimulations: [purchase, ...previous.recentSimulations.filter((p) => p.id !== purchase.id)].slice(0, 10),
             pendingSimulations: purchase.status === 'cooling_down'
-              ? [purchase, ...previous.pendingSimulations] : previous.pendingSimulations,
+              ? [purchase, ...previous.pendingSimulations.filter((p) => p.id !== purchase.id)]
+              : previous.pendingSimulations.filter((p) => p.id !== purchase.id),
           } : previous);
         return queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
       },
     },
   });
-  const [merchantName, setMerchantName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [formError, setFormError] = useState('');
+  const [merchantName, setMerchantName] = useState(restored.request?.merchantName ?? '');
+  const [amount, setAmount] = useState(restored.request ? String(restored.request.amount) : '');
+  const [formError, setFormError] = useState(restored.error);
+  const [restoreError, setRestoreError] = useState(Boolean(restored.error));
   const [successMessage, setSuccessMessage] = useState('');
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting.current || restoreError) return;
     setFormError('');
     setSuccessMessage('');
     const trimmedName = merchantName.trim();
@@ -69,19 +76,59 @@ export default function HomePage() {
       setFormError('أدخلي مبلغاً أكبر من صفر ولا يتجاوز ١٠٬٠٠٠ د.ك.');
       return;
     }
+    let request = pendingRequest;
+    try {
+      request ??= {
+        idempotencyKey: crypto.randomUUID(), merchantName: trimmedName,
+        amount: parsedAmount, currency: 'KWD',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      };
+      // Persist before the network call so a reload cannot lose the retry key.
+      savePurchaseRequest(request);
+    } catch {
+      setFormError('تعذر حفظ مفتاح إعادة المحاولة في هذا التبويب. لم نرسل الطلب؛ اسمحي بتخزين الجلسة وحاولي مجددًا.');
+      return;
+    }
+    setPendingRequest(request);
+    submitting.current = true;
     createSimulation.mutate(
-      { data: { merchantName: trimmedName, amount: parsedAmount, currency: 'KWD', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } },
+      { data: request },
       {
         onSuccess: (purchase) => {
+          try {
+            clearPurchaseRequest();
+            setPendingRequest(null);
+          } catch {
+            setFormError('المحاولة محفوظة، لكن تعذر مسح طلب الإعادة. لا تبدئي محاولة جديدة قبل السماح بتخزين الجلسة.');
+            return;
+          }
           setMerchantName('');
           setAmount('');
           setSuccessMessage(purchase.status === 'cooling_down'
-            ? 'حُفظت المحاولة وبدأت مهلة التهدئة. يمكنك تأجيل الشراء الآن أو الانتظار للإجابة عن أسئلة التوعية.'
-            : 'تم تسجيل المحاكاة خارج ساعات الحظر أو والدرع غير مفعّل. لم يتم خصم أي مبلغ من رصيدك.');
+            ? 'المحاولة محفوظة بموعد التهدئة الأصلي. يمكنك تأجيل الشراء الآن أو الانتظار للإجابة عن أسئلة التوعية.'
+            : purchase.status === 'postponed' ? 'استُعيدت المحاولة المؤجلة نفسها. لم يتم إنشاء محاولة أخرى أو خصم أموال.'
+            : 'المحاكاة محفوظة. لم يتم إنشاء نسخة مكررة أو خصم أي مبلغ من رصيدك.');
         },
-        onError: () => setFormError('تعذر تسجيل المحاكاة الآن. تحققي من الاتصال وحاولي مرة أخرى.'),
+        onError: () => setFormError('لم نتلقَّ تأكيدًا لحفظ المحاولة. أعيدي إرسال الطلب نفسه لاستعادتها دون سجل أو تهدئة جديدة.'),
+        onSettled: () => { submitting.current = false; },
       },
     );
+  }
+
+  function startNewAttempt() {
+    if (submitting.current) return;
+    try {
+      clearPurchaseRequest();
+      setPendingRequest(null);
+      setRestoreError(false);
+      setMerchantName('');
+      setAmount('');
+      setFormError('');
+      setSuccessMessage('');
+      createSimulation.reset();
+    } catch {
+      setFormError('تعذر مسح الطلب السابق. اسمحي بتخزين الجلسة قبل بدء محاولة جديدة.');
+    }
   }
 
   return (
@@ -161,21 +208,25 @@ export default function HomePage() {
             <form onSubmit={handleSubmit} noValidate>
               <label className="field">
                 <span className="field-label">اسم المتجر</span>
-                <input data-testid="input-merchant-name" type="text" autoComplete="off" maxLength={80} placeholder="مثال: متجر الكتب" value={merchantName} onChange={(event) => setMerchantName(event.target.value)} />
+                <input data-testid="input-merchant-name" disabled={Boolean(pendingRequest) || createSimulation.isPending || restoreError} type="text" autoComplete="off" maxLength={80} placeholder="مثال: متجر الكتب" value={merchantName} onChange={(event) => setMerchantName(event.target.value)} />
               </label>
               <label className="field">
                 <span className="field-label">المبلغ</span>
                 <div className="amount-wrap">
-                  <input data-testid="input-purchase-amount" type="number" inputMode="decimal" min="0.001" max="10000" step="0.001" placeholder="٠٫٠٠٠" value={amount} onChange={(event) => setAmount(event.target.value)} />
+                  <input data-testid="input-purchase-amount" disabled={Boolean(pendingRequest) || createSimulation.isPending || restoreError} type="number" inputMode="decimal" min="0.001" max="10000" step="0.001" placeholder="٠٫٠٠٠" value={amount} onChange={(event) => setAmount(event.target.value)} />
                   <span className="amount-unit">د.ك</span>
                 </div>
               </label>
               <div className="form-hint"><AlertCircle size={13} /> هذه محاكاة للعرض فقط. لا تتم أي عملية دفع أو خصم أموال.</div>
               {formError && <div className="form-message error" role="alert" data-testid="message-form-error">{formError}</div>}
               {successMessage && <div className="form-message success" role="status" data-testid="message-form-success">{successMessage}</div>}
-              <button className="submit-button" data-testid="button-submit-simulation" type="submit" disabled={createSimulation.isPending || isLoading}>
-                {createSimulation.isPending ? <><Clock3 size={16} /> جارٍ تسجيل المحاكاة...</> : <>تسجيل المحاكاة <ArrowUpLeft size={16} /></>}
+              <button className="submit-button" data-testid="button-submit-simulation" type="submit" disabled={createSimulation.isPending || isLoading || restoreError}>
+                {createSimulation.isPending ? <><Clock3 size={16} /> جارٍ تسجيل المحاكاة...</> : <>{pendingRequest ? 'إعادة إرسال المحاولة نفسها' : 'تسجيل المحاكاة'} <ArrowUpLeft size={16} /></>}
               </button>
+              {(pendingRequest || restoreError) && <>
+                <p className="form-hint">قد تكون المحاولة السابقة محفوظة بالفعل. بدء محاولة جديدة مقصود ينشئ سجلًا مستقلًا؛ لا يلغِي السابقة.</p>
+                <button className="retry-button" data-testid="button-new-simulation" type="button" disabled={createSimulation.isPending} onClick={startNewAttempt}>بدء محاولة جديدة بمفتاح جديد</button>
+              </>}
             </form>
           </article>
 

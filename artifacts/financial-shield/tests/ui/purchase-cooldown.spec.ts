@@ -121,11 +121,15 @@ for (const failure of ['server', 'network'] as const) {
 
 test('failed postponement is not removed or shown as saved, and can be retried', async ({ page, api }) => {
   api.seed(60);
+  const originalDeadline = api.purchase!.cooldownEndsAt;
   api.failure = 'server';
   await openHome(page, api);
   await page.getByTestId(`postpone-${ID}`).click();
   await expect(page.getByTestId(`cooldown-${ID}`).getByRole('alert')).toBeVisible();
-  await expect(page.getByTestId(`timer-${ID}`)).toHaveText('01:00');
+  // Async loading and the failed request can consume real browser seconds.
+  // Check a running cooldown and its immutable deadline, not a frozen display.
+  await expect(page.getByTestId(`timer-${ID}`)).toHaveText(/^(?:01:00|00:5\d)$/);
+  expect(api.purchase!.cooldownEndsAt).toBe(originalDeadline);
   await page.reload();
   await expect(page.getByTestId(`cooldown-${ID}`)).toBeVisible();
   await expect(page.getByTestId(`row-simulation-${ID}`)).toContainText('بانتظار القرار');

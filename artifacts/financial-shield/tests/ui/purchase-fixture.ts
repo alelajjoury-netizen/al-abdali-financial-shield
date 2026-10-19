@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import type {
-  Dashboard, PurchaseSimulation, PurchaseDecisionInput, ProtectionSettings,
+  Dashboard, PurchaseSimulation, PurchaseDecisionInput, ProtectionSettings, PurchaseSimulationInput,
 } from '@workspace/api-client-react';
 
 export const START = Date.parse('2026-10-19T10:00:00.000Z');
@@ -18,6 +18,11 @@ export class PurchaseApi {
   dashboardReads = 0;
   failure: 'server' | 'network' | null = null;
   holdDecision: Promise<void> | null = null;
+  creations: PurchaseSimulationInput[] = [];
+  lostCreationResponse = false;
+  holdCreation: Promise<void> | null = null;
+  creationCount = 0;
+  purchasesByKey = new Map<string, PurchaseSimulation>();
   unexpectedRequests: string[] = [];
   settings: ProtectionSettings = {
     enabled: true, blockStartHour: 0, blockEndHour: 23, cooldownMinutes: 1,
@@ -71,12 +76,23 @@ export const test = base.extend<{ api: PurchaseApi }>({
         return route.fulfill({ json: api.settings });
       }
       if (path === '/api/purchases/simulate' && method === 'POST') {
-        const input = request.postDataJSON();
-        api.seed(60);
-        Object.assign(api.purchase!, {
-          merchantName: input.merchantName, amount: input.amount, currency: input.currency,
-        });
-        return route.fulfill({ status: 201, json: api.snapshot() });
+        const input: PurchaseSimulationInput = request.postDataJSON();
+        api.creations.push(input);
+        expect(input.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+        if (api.holdCreation) await api.holdCreation;
+        const existing = api.purchasesByKey.get(input.idempotencyKey);
+        if (!existing) {
+          api.seed(60);
+          Object.assign(api.purchase!, {
+            merchantName: input.merchantName, amount: input.amount, currency: input.currency,
+          });
+          api.purchasesByKey.set(input.idempotencyKey, api.purchase!);
+          api.creationCount++;
+        } else {
+          api.purchase = existing;
+        }
+        if (api.lostCreationResponse) return route.abort('failed');
+        return route.fulfill({ status: existing ? 200 : 201, json: api.snapshot() });
       }
       if (path === `/api/purchases/${ID}/decision` && method === 'POST') {
         const decision: PurchaseDecisionInput = request.postDataJSON();

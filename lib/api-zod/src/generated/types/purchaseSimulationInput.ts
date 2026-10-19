@@ -8,6 +8,8 @@
 import type { PurchaseSimulationInputCurrency } from './purchaseSimulationInputCurrency';
 
 export interface PurchaseSimulationInput {
+  /** Client-generated UUID retained for retries of this exact attempt; use a fresh UUID for an intentional new attempt */
+  idempotencyKey: string;
   /**
      * @minLength 1
      * @maxLength 80

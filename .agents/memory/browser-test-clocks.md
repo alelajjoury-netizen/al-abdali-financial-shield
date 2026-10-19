@@ -16,3 +16,8 @@ when another page is opened. Install Playwright's clock once per browser context
 not once per page: it is shared across windows, and reinstalling it changes the
 first page's monotonic clock. Keep API boundary timestamps explicit and do not
 mistake the controlled API fixture for proof of server-side enforcement.
+
+For non-boundary countdown checks after awaited UI or network actions, allow
+bounded real elapsed seconds and also assert that the stored deadline is
+unchanged. An exact initial-minute display is flaky under browser load even
+when the deadline is correct.

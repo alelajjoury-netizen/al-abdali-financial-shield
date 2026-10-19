@@ -10,7 +10,7 @@ import {
 import { databaseReady, databaseUnavailable } from "../lib/database-ready";
 import { isBlockedAt } from "../lib/purchase-protection";
 import { readProtectionSettings } from "../models/ProtectionSettings";
-import { PurchaseSimulationModel } from "../models/PurchaseSimulation";
+import { PurchaseSimulationModel, createOrRecoverPurchase, PurchaseKeyConflict } from "../models/PurchaseSimulation";
 import { readDemoAccount } from "../models/Account";
 import { readDemoVirtualCard } from "../models/VirtualCard";
 
@@ -76,30 +76,35 @@ router.get("/dashboard", async (req, res): Promise<void> => {
 router.post("/purchases/simulate", async (req, res): Promise<void> => {
   const parsed = CreatePurchaseSimulationBody.strict().safeParse(req.body);
   if (!parsed.success || !parsed.data.merchantName.trim()) {
-    res.status(400).json({ error: "أدخل اسم المتجر ومبلغًا صحيحًا أكبر من صفر." });
+    res.status(400).json({ error: "أدخل بيانات شراء صحيحة ومفتاح محاولة UUID صالحًا." });
     return;
   }
   if (!(await databaseReady(req, res))) return;
 
   try {
-  const settings = await readProtectionSettings();
-  const now = new Date();
-  let blocked: boolean;
-  try {
-    blocked = isBlockedAt(settings, parsed.data.timeZone, now);
-  } catch {
-    res.status(400).json({ error: "المنطقة الزمنية للجهاز غير صالحة." });
-    return;
-  }
-  const record = await PurchaseSimulationModel.create({
-    ...parsed.data,
-    merchantName: parsed.data.merchantName.trim(),
-    status: blocked ? "cooling_down" : "simulated",
-    cooldownEndsAt: blocked ? new Date(now.getTime() + settings.cooldownMinutes * 60_000) : null,
-  });
+    // Validate even for a replay, without recomputing its protection decision.
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: parsed.data.timeZone });
+    } catch {
+      res.status(400).json({ error: "المنطقة الزمنية للجهاز غير صالحة." });
+      return;
+    }
+    const { record, created } = await createOrRecoverPurchase(parsed.data, async () => {
+      const settings = await readProtectionSettings();
+      const now = new Date();
+      const blocked = isBlockedAt(settings, parsed.data.timeZone, now);
+      return {
+        status: blocked ? "cooling_down" : "simulated",
+        cooldownEndsAt: blocked ? new Date(now.getTime() + settings.cooldownMinutes * 60_000) : null,
+      };
+    });
 
-  res.status(201).json(purchaseResponse(record));
-  } catch {
+    res.status(created ? 201 : 200).json(purchaseResponse(record));
+  } catch (error) {
+    if (error instanceof PurchaseKeyConflict) {
+      res.status(409).json({ error: "هذا المفتاح مرتبط بمحاولة أخرى. أعيدي إرسال بياناتها الأصلية أو ابدئي محاولة جديدة بمفتاح جديد." });
+      return;
+    }
     databaseUnavailable(req, res);
   }
 });

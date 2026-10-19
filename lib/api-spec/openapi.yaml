@@ -98,7 +98,7 @@ paths:
       operationId: createPurchaseSimulation
       tags: [financial-shield]
       summary: Record a simulated purchase attempt
-      description: Saves a purchase simulation without charging money or contacting a bank
+      description: Saves a demo simulation without payments. Reuse idempotencyKey with identical input after a lost response to recover the same attempt and original deadline. A deliberate new attempt requires a new key; changed input with an existing key returns 409.
       requestBody:
         required: true
         content:
@@ -106,6 +106,12 @@ paths:
             schema:
               $ref: "#/components/schemas/PurchaseSimulationInput"
       responses:
+        "200":
+          description: Existing attempt recovered; status and original cooldown deadline are preserved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseSimulation"
         "201":
           description: Purchase simulation recorded
           content:
@@ -114,6 +120,12 @@ paths:
                 $ref: "#/components/schemas/PurchaseSimulation"
         "400":
           description: Invalid purchase simulation input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Idempotency key already used with different purchase input
           content:
             application/json:
               schema:
@@ -286,6 +298,10 @@ components:
     PurchaseSimulationInput:
       type: object
       properties:
+        idempotencyKey:
+          description: Client-generated UUID retained for retries of this exact attempt; use a fresh UUID for an intentional new attempt
+          type: string
+          format: uuid
         merchantName:
           type: string
           minLength: 1
@@ -302,7 +318,7 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-      required: [merchantName, amount, currency, timeZone]
+      required: [idempotencyKey, merchantName, amount, currency, timeZone]
     PurchaseDecisionInput:
       type: object
       additionalProperties: false

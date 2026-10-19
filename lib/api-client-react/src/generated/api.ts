@@ -387,7 +387,7 @@ export const getCreatePurchaseSimulationUrl = () => {
 }
 
 /**
- * Saves a purchase simulation without charging money or contacting a bank
+ * Saves a demo simulation without payments. Reuse idempotencyKey with identical input after a lost response to recover the same attempt and original deadline. A deliberate new attempt requires a new key; changed input with an existing key returns 409.
  * @summary Record a simulated purchase attempt
  */
 export const createPurchaseSimulation = async (purchaseSimulationInput: PurchaseSimulationInput, options?: Parameters<typeof customFetch>[1]): Promise<PurchaseSimulation> => {

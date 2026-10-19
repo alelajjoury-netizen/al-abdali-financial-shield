@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 
 // Opt-in: this exercises the shared development demo and restores its settings.
@@ -26,7 +27,7 @@ test("saved cooldown, awareness, postponement and atomic final decisions", {
   const input = { merchantName: "اختبار محاكاة التهدئة", amount: 1.25, currency: "KWD", timeZone: "UTC" };
   const answers = { action: "continue", isNecessary: false, fitsBudget: false };
   async function create() {
-    const result = await request("/purchases/simulate", "POST", input);
+    const result = await request("/purchases/simulate", "POST", { ...input, idempotencyKey: randomUUID() });
     assert.equal(result.status, 201);
     attempts.push(result.data.id);
     return result.data;
@@ -62,7 +63,7 @@ test("saved cooldown, awareness, postponement and atomic final decisions", {
     assert.ok(!dashboard.data.pendingSimulations.some((item) => item.id === deferred.id));
     assert.equal(dashboard.data.account.availableBalance, originalBalance);
     assert.equal((await request("/purchases/not-an-id")).status, 404);
-    assert.equal((await request("/purchases/simulate", "POST", { ...input, timeZone: "invalid" })).status, 400);
+    assert.equal((await request("/purchases/simulate", "POST", { ...input, idempotencyKey: randomUUID(), timeZone: "invalid" })).status, 400);
     console.info("Waiting for the real server-enforced one-minute deadline.");
     await new Promise((resolve) => setTimeout(resolve, Math.max(0, Date.parse(purchase.cooldownEndsAt) - Date.now()) + 1200));
     const decisions = await Promise.all([

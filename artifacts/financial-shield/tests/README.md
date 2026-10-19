@@ -31,6 +31,10 @@ use a second page in the same browser context and the real decision buttons.
 
 ## Coverage
 
+- Lost creation responses retain their request key across reload and retry; recovery
+  keeps the original deadline and deduplicates the UI. Double submissions are blocked;
+  explicit new attempts and attempts after confirmed success receive fresh keys.
+
 - Create a purchase and reload during cooldown: remaining time is neither reset
   nor skipped. A device wall-clock jump cannot bypass the monotonic countdown.
 - The countdown boundary unlocks the questions, but continuation remains disabled
