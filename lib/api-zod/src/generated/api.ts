@@ -38,9 +38,23 @@ export const GetDashboardResponse = zod.object({
   "merchantName": zod.string(),
   "amount": zod.number(),
   "currency": zod.string(),
-  "status": zod.enum(['simulated']),
+  "status": zod.enum(['simulated', 'cooling_down', 'postponed']),
+  "cooldownEndsAt": zod.coerce.date().nullable(),
+  "serverTime": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "pendingSimulations": zod.array(zod.object({
+  "id": zod.string(),
+  "merchantName": zod.string(),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "status": zod.enum(['simulated', 'cooling_down', 'postponed']),
+  "cooldownEndsAt": zod.coerce.date().nullable(),
+  "serverTime": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})).describe('All unresolved cooling attempts, including those older than the recent history window')
 })
 
 
@@ -70,7 +84,7 @@ export const GetProtectionSettingsResponse = zod.object({
 
 
 /**
- * Configures the shield only; does not execute payments or enforce purchase cooldowns.
+ * Configures protection for new simulated attempts. Existing cooldown deadlines remain unchanged. No real payments.
  * @summary Save all protection settings for the shared demo account
  */
 export const updateProtectionSettingsBodyEnabledDefault = false;
@@ -125,12 +139,15 @@ export const createPurchaseSimulationBodyMerchantNameMax = 80;
 export const createPurchaseSimulationBodyAmountExclusiveMin = 0;
 export const createPurchaseSimulationBodyAmountMax = 10000;
 
+export const createPurchaseSimulationBodyTimeZoneMax = 100;
+
 
 
 export const CreatePurchaseSimulationBody = zod.object({
   "merchantName": zod.string().min(1).max(createPurchaseSimulationBodyMerchantNameMax),
   "amount": zod.number().gt(createPurchaseSimulationBodyAmountExclusiveMin).max(createPurchaseSimulationBodyAmountMax),
-  "currency": zod.enum(['KWD'])
+  "currency": zod.enum(['KWD']),
+  "timeZone": zod.string().min(1).max(createPurchaseSimulationBodyTimeZoneMax).describe('Device IANA timezone; server evaluates the current local hour using its own clock')
 })
 
 export const CreatePurchaseSimulationResponse = zod.object({
@@ -138,7 +155,59 @@ export const CreatePurchaseSimulationResponse = zod.object({
   "merchantName": zod.string(),
   "amount": zod.number(),
   "currency": zod.string(),
-  "status": zod.enum(['simulated']),
+  "status": zod.enum(['simulated', 'cooling_down', 'postponed']),
+  "cooldownEndsAt": zod.coerce.date().nullable(),
+  "serverTime": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const getPurchaseSimulationPathIdRegExp = new RegExp('^[a-fA-F0-9]{24}$');
+
+
+export const GetPurchaseSimulationParams = zod.object({
+  "id": zod.coerce.string().regex(getPurchaseSimulationPathIdRegExp)
+})
+
+export const GetPurchaseSimulationResponse = zod.object({
+  "id": zod.string(),
+  "merchantName": zod.string(),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "status": zod.enum(['simulated', 'cooling_down', 'postponed']),
+  "cooldownEndsAt": zod.coerce.date().nullable(),
+  "serverTime": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Postpone at any time, or continue only after the saved cooldown and both awareness answers. A terminal decision cannot be changed. No real charge.
+ */
+export const decidePurchaseSimulationPathIdRegExp = new RegExp('^[a-fA-F0-9]{24}$');
+
+
+export const DecidePurchaseSimulationParams = zod.object({
+  "id": zod.coerce.string().regex(decidePurchaseSimulationPathIdRegExp)
+})
+
+export const DecidePurchaseSimulationBody = zod.object({
+  "action": zod.enum(['continue', 'postpone']),
+  "isNecessary": zod.boolean().optional().describe('Answer to whether this purchase is a current need; either answer is accepted'),
+  "fitsBudget": zod.boolean().optional().describe('Answer to whether this purchase fits the planned budget; either answer is accepted')
+})
+
+export const DecidePurchaseSimulationResponse = zod.object({
+  "id": zod.string(),
+  "merchantName": zod.string(),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "status": zod.enum(['simulated', 'cooling_down', 'postponed']),
+  "cooldownEndsAt": zod.coerce.date().nullable(),
+  "serverTime": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 })
 

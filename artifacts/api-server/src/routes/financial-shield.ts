@@ -3,8 +3,12 @@ import {
   CreatePurchaseSimulationBody,
   CreatePurchaseSimulationResponse,
   GetDashboardResponse,
+  GetPurchaseSimulationParams,
+  DecidePurchaseSimulationParams,
+  DecidePurchaseSimulationBody,
 } from "@workspace/api-zod";
-import { databaseReady } from "../lib/database-ready";
+import { databaseReady, databaseUnavailable } from "../lib/database-ready";
+import { isBlockedAt } from "../lib/purchase-protection";
 import { readProtectionSettings } from "../models/ProtectionSettings";
 import { PurchaseSimulationModel } from "../models/PurchaseSimulation";
 
@@ -17,6 +21,8 @@ function purchaseResponse(record: {
   currency: string;
   status: string;
   createdAt: Date;
+  cooldownEndsAt?: Date | null;
+  decidedAt?: Date | null;
 }) {
   return CreatePurchaseSimulationResponse.parse({
     id: record._id.toString(),
@@ -25,17 +31,23 @@ function purchaseResponse(record: {
     currency: record.currency,
     status: record.status,
     createdAt: record.createdAt,
+    cooldownEndsAt: record.cooldownEndsAt ?? null,
+    decidedAt: record.decidedAt ?? null,
+    serverTime: new Date(),
   });
 }
 
 router.get("/dashboard", async (req, res): Promise<void> => {
   if (!(await databaseReady(req, res))) return;
 
+  try {
   const records = await PurchaseSimulationModel.find()
     .sort({ createdAt: -1 })
     .limit(10)
     .lean();
   const settings = await readProtectionSettings();
+  const pending = await PurchaseSimulationModel.find({ status: "cooling_down" })
+    .sort({ createdAt: -1 }).lean();
 
   res.json(GetDashboardResponse.parse({
     account: {
@@ -50,24 +62,106 @@ router.get("/dashboard", async (req, res): Promise<void> => {
     },
     protectionEnabled: settings.enabled,
     recentSimulations: records.map((record) => purchaseResponse(record as Parameters<typeof purchaseResponse>[0])),
+    pendingSimulations: pending.map((record) => purchaseResponse(record as Parameters<typeof purchaseResponse>[0])),
   }));
+  } catch {
+    databaseUnavailable(req, res);
+  }
 });
 
 router.post("/purchases/simulate", async (req, res): Promise<void> => {
-  const parsed = CreatePurchaseSimulationBody.safeParse(req.body);
+  const parsed = CreatePurchaseSimulationBody.strict().safeParse(req.body);
   if (!parsed.success || !parsed.data.merchantName.trim()) {
     res.status(400).json({ error: "أدخل اسم المتجر ومبلغًا صحيحًا أكبر من صفر." });
     return;
   }
   if (!(await databaseReady(req, res))) return;
 
+  try {
+  const settings = await readProtectionSettings();
+  const now = new Date();
+  let blocked: boolean;
+  try {
+    blocked = isBlockedAt(settings, parsed.data.timeZone, now);
+  } catch {
+    res.status(400).json({ error: "المنطقة الزمنية للجهاز غير صالحة." });
+    return;
+  }
   const record = await PurchaseSimulationModel.create({
     ...parsed.data,
     merchantName: parsed.data.merchantName.trim(),
-    status: "simulated",
+    status: blocked ? "cooling_down" : "simulated",
+    cooldownEndsAt: blocked ? new Date(now.getTime() + settings.cooldownMinutes * 60_000) : null,
   });
 
   res.status(201).json(purchaseResponse(record));
+  } catch {
+    databaseUnavailable(req, res);
+  }
+});
+
+router.get("/purchases/:id", async (req, res): Promise<void> => {
+  const params = GetPurchaseSimulationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(404).json({ error: "محاولة الشراء غير موجودة." });
+    return;
+  }
+  if (!(await databaseReady(req, res))) return;
+  try {
+    const record = await PurchaseSimulationModel.findById(params.data.id).lean();
+    if (!record) {
+      res.status(404).json({ error: "محاولة الشراء غير موجودة." });
+      return;
+    }
+    res.json(purchaseResponse(record as Parameters<typeof purchaseResponse>[0]));
+  } catch {
+    databaseUnavailable(req, res);
+  }
+});
+
+router.post("/purchases/:id/decision", async (req, res): Promise<void> => {
+  const params = DecidePurchaseSimulationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(404).json({ error: "محاولة الشراء غير موجودة." });
+    return;
+  }
+  const parsed = DecidePurchaseSimulationBody.strict().safeParse(req.body);
+  if (!parsed.success || (parsed.data.action === "continue" &&
+      (typeof parsed.data.isNecessary !== "boolean" || typeof parsed.data.fitsBudget !== "boolean"))) {
+    res.status(400).json({ error: "اختر قرارًا وأجب عن سؤالي التوعية قبل المتابعة." });
+    return;
+  }
+  if (!(await databaseReady(req, res))) return;
+  try {
+    const now = new Date();
+    const continuing = parsed.data.action === "continue";
+    // One atomic transition prevents double decisions, races, and early continuation.
+    const record = await PurchaseSimulationModel.findOneAndUpdate(
+      {
+        _id: params.data.id,
+        status: "cooling_down",
+        ...(continuing ? { cooldownEndsAt: { $ne: null, $lte: now } } : {}),
+      },
+      { $set: {
+        status: continuing ? "simulated" : "postponed",
+        decidedAt: now,
+        ...(continuing ? { awareness: {
+          isNecessary: parsed.data.isNecessary, fitsBudget: parsed.data.fitsBudget,
+        } } : {}),
+      } },
+      { returnDocument: "after", runValidators: true },
+    ).lean();
+    if (!record) {
+      const exists = await PurchaseSimulationModel.exists({ _id: params.data.id });
+      res.status(exists ? 409 : 404).json({ error: exists
+        ? "لا يمكن المتابعة قبل انتهاء التهدئة، أو تم اتخاذ قرار لهذه المحاولة بالفعل."
+        : "محاولة الشراء غير موجودة." });
+      return;
+    }
+    res.json(purchaseResponse(record as Parameters<typeof purchaseResponse>[0]));
+  } catch {
+    databaseUnavailable(req, res);
+  }
 });
 
 export default router;

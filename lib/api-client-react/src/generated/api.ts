@@ -24,6 +24,7 @@ import type {
   Dashboard,
   HealthStatus,
   ProtectionSettings,
+  PurchaseDecisionInput,
   PurchaseSimulation,
   PurchaseSimulationInput
 } from './api.schemas';
@@ -297,7 +298,7 @@ export const getUpdateProtectionSettingsUrl = () => {
 }
 
 /**
- * Configures the shield only; does not execute payments or enforce purchase cooldowns.
+ * Configures protection for new simulated attempts. Existing cooldown deadlines remain unchanged. No real payments.
  * @summary Save all protection settings for the shared demo account
  */
 export const updateProtectionSettings = async (protectionSettings: ProtectionSettings, options?: Parameters<typeof customFetch>[1]): Promise<ProtectionSettings> => {
@@ -464,5 +465,162 @@ export const useCreatePurchaseSimulation = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getCreatePurchaseSimulationMutationOptions(options));
+    }
+
+export const getGetPurchaseSimulationUrl = (id: string,) => {
+
+
+
+
+  return `/api/purchases/${id}`
+}
+
+export const getPurchaseSimulation = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<PurchaseSimulation> => {
+
+  return customFetch<PurchaseSimulation>(getGetPurchaseSimulationUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPurchaseSimulationQueryKey = (id: string,) => {
+    return [
+    `/api/purchases/${id}`
+    ] as const;
+    }
+
+
+export const getGetPurchaseSimulationQueryOptions = <TData = Awaited<ReturnType<typeof getPurchaseSimulation>>, TError = ErrorType<ApiError>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPurchaseSimulation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPurchaseSimulationQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPurchaseSimulation>>> = ({ signal }) => getPurchaseSimulation(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPurchaseSimulation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPurchaseSimulationQueryResult = NonNullable<Awaited<ReturnType<typeof getPurchaseSimulation>>>
+export type GetPurchaseSimulationQueryError = ErrorType<ApiError>
+
+
+
+export function useGetPurchaseSimulation<TData = Awaited<ReturnType<typeof getPurchaseSimulation>>, TError = ErrorType<ApiError>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPurchaseSimulation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPurchaseSimulationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDecidePurchaseSimulationUrl = (id: string,) => {
+
+
+
+
+  return `/api/purchases/${id}/decision`
+}
+
+/**
+ * Postpone at any time, or continue only after the saved cooldown and both awareness answers. A terminal decision cannot be changed. No real charge.
+ */
+export const decidePurchaseSimulation = async (id: string,
+    purchaseDecisionInput: PurchaseDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<PurchaseSimulation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PurchaseSimulation>(getDecidePurchaseSimulationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(purchaseDecisionInput)
+  }
+);}
+
+
+
+
+
+export const getDecidePurchaseSimulationMutationKey = () => ['decidePurchaseSimulation'] as const;
+
+export const getDecidePurchaseSimulationMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decidePurchaseSimulation>>, TError,DecidePurchaseSimulationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decidePurchaseSimulation>>, TError,DecidePurchaseSimulationMutationVariables, TContext> => {
+
+const mutationKey = getDecidePurchaseSimulationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decidePurchaseSimulation>>, DecidePurchaseSimulationMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  decidePurchaseSimulation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecidePurchaseSimulationMutationResult = NonNullable<Awaited<ReturnType<typeof decidePurchaseSimulation>>>
+    export type DecidePurchaseSimulationMutationBody = BodyType<PurchaseDecisionInput>
+    export type DecidePurchaseSimulationMutationError = ErrorType<ApiError>
+    export type DecidePurchaseSimulationMutationVariables = {id: string;data: BodyType<PurchaseDecisionInput>}
+
+    export const useDecidePurchaseSimulation = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decidePurchaseSimulation>>, TError,DecidePurchaseSimulationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decidePurchaseSimulation>>,
+        TError,
+        DecidePurchaseSimulationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecidePurchaseSimulationMutationOptions(options));
     }
 

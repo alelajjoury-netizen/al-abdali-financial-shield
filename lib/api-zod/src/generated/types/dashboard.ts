@@ -14,4 +14,6 @@ export interface Dashboard {
   virtualCard: DemoVirtualCard;
   protectionEnabled: boolean;
   recentSimulations: PurchaseSimulation[];
+  /** All unresolved cooling attempts, including those older than the recent history window */
+  pendingSimulations: PurchaseSimulation[];
 }

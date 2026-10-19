@@ -13,5 +13,10 @@ export interface PurchaseSimulation {
   amount: number;
   currency: string;
   status: PurchaseSimulationStatus;
+  /** @nullable */
+  cooldownEndsAt: Date | null;
+  serverTime: Date;
+  /** @nullable */
+  decidedAt: Date | null;
   createdAt: Date;
 }

@@ -67,7 +67,7 @@ paths:
       operationId: updateProtectionSettings
       tags: [financial-shield]
       summary: Save all protection settings for the shared demo account
-      description: Configures the shield only; does not execute payments or enforce purchase cooldowns.
+      description: Configures protection for new simulated attempts. Existing cooldown deadlines remain unchanged. No real payments.
       requestBody:
         required: true
         content:
@@ -124,6 +124,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /purchases/{id}:
+    get:
+      operationId: getPurchaseSimulation
+      tags: [financial-shield]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: "^[a-fA-F0-9]{24}$" } }
+      responses:
+        "200":
+          description: Saved attempt with current server time
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PurchaseSimulation" }
+        "404":
+          description: Attempt not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "503":
+          description: Storage unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /purchases/{id}/decision:
+    post:
+      operationId: decidePurchaseSimulation
+      tags: [financial-shield]
+      description: Postpone at any time, or continue only after the saved cooldown and both awareness answers. A terminal decision cannot be changed. No real charge.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: "^[a-fA-F0-9]{24}$" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PurchaseDecisionInput" }
+      responses:
+        "200":
+          description: Saved final decision
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PurchaseSimulation" }
+        "400":
+          description: Invalid decision or missing answers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          description: Attempt not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "409":
+          description: Cooldown has not ended or attempt already finalized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "503":
+          description: Storage unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
 components:
   schemas:
     ProtectionSettings:
@@ -190,11 +250,20 @@ components:
           type: string
         status:
           type: string
-          enum: [simulated]
+          enum: [simulated, cooling_down, postponed]
+        cooldownEndsAt:
+          type: [string, "null"]
+          format: date-time
+        serverTime:
+          type: string
+          format: date-time
+        decidedAt:
+          type: [string, "null"]
+          format: date-time
         createdAt:
           type: string
           format: date-time
-      required: [id, merchantName, amount, currency, status, createdAt]
+      required: [id, merchantName, amount, currency, status, createdAt, cooldownEndsAt, serverTime, decidedAt]
     Dashboard:
       type: object
       properties:
@@ -208,7 +277,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PurchaseSimulation"
-      required: [account, virtualCard, protectionEnabled, recentSimulations]
+        pendingSimulations:
+          description: All unresolved cooling attempts, including those older than the recent history window
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseSimulation"
+      required: [account, virtualCard, protectionEnabled, recentSimulations, pendingSimulations]
     PurchaseSimulationInput:
       type: object
       properties:
@@ -223,7 +297,26 @@ components:
         currency:
           type: string
           enum: [KWD]
-      required: [merchantName, amount, currency]
+        timeZone:
+          description: Device IANA timezone; server evaluates the current local hour using its own clock
+          type: string
+          minLength: 1
+          maxLength: 100
+      required: [merchantName, amount, currency, timeZone]
+    PurchaseDecisionInput:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [continue, postpone]
+        isNecessary:
+          type: boolean
+          description: Answer to whether this purchase is a current need; either answer is accepted
+        fitsBudget:
+          type: boolean
+          description: Answer to whether this purchase fits the planned budget; either answer is accepted
     ApiError:
       type: object
       properties:

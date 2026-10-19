@@ -14,3 +14,9 @@ Interpret the daily block interval in the device's local clock, including the st
 **Why:** A definite convention prevents the settings screen and later purchase enforcement from disagreeing at midnight or at interval boundaries.
 
 **How to apply:** Use this convention when the next phase applies blocking and cooldowns. Settings alone do not claim to enforce purchases.
+
+In this MVP, a purchase started during protected hours waits for a cooldown, then can proceed after two awareness answers; protected hours are not an absolute ban. Either yes/no answer is valid. Postponement ends that attempt without scheduling an automatic purchase.
+
+**Why:** The approved scope is a reflective purchase simulation, not a payment-blocking system or an automated purchase scheduler.
+
+**How to apply:** Keep final decisions terminal and don't reinterpret postponement as authorization to execute later. Changes to protection settings affect new attempts, not cooldowns already started.

@@ -48,6 +48,8 @@ export type PurchaseSimulationStatus = typeof PurchaseSimulationStatus[keyof typ
 
 export const PurchaseSimulationStatus = {
   simulated: 'simulated',
+  cooling_down: 'cooling_down',
+  postponed: 'postponed',
 } as const;
 
 export interface PurchaseSimulation {
@@ -56,6 +58,11 @@ export interface PurchaseSimulation {
   amount: number;
   currency: string;
   status: PurchaseSimulationStatus;
+  /** @nullable */
+  cooldownEndsAt: string | null;
+  serverTime: string;
+  /** @nullable */
+  decidedAt: string | null;
   createdAt: string;
 }
 
@@ -64,6 +71,8 @@ export interface Dashboard {
   virtualCard: DemoVirtualCard;
   protectionEnabled: boolean;
   recentSimulations: PurchaseSimulation[];
+  /** All unresolved cooling attempts, including those older than the recent history window */
+  pendingSimulations: PurchaseSimulation[];
 }
 
 export type PurchaseSimulationInputCurrency = typeof PurchaseSimulationInputCurrency[keyof typeof PurchaseSimulationInputCurrency];
@@ -85,6 +94,28 @@ export interface PurchaseSimulationInput {
      */
   amount: number;
   currency: PurchaseSimulationInputCurrency;
+  /**
+     * Device IANA timezone; server evaluates the current local hour using its own clock
+     * @minLength 1
+     * @maxLength 100
+     */
+  timeZone: string;
+}
+
+export type PurchaseDecisionInputAction = typeof PurchaseDecisionInputAction[keyof typeof PurchaseDecisionInputAction];
+
+
+export const PurchaseDecisionInputAction = {
+  continue: 'continue',
+  postpone: 'postpone',
+} as const;
+
+export interface PurchaseDecisionInput {
+  action: PurchaseDecisionInputAction;
+  /** Answer to whether this purchase is a current need; either answer is accepted */
+  isNecessary?: boolean;
+  /** Answer to whether this purchase fits the planned budget; either answer is accepted */
+  fitsBudget?: boolean;
 }
 
 export interface ApiError {

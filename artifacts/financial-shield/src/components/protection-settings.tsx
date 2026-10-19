@@ -97,7 +97,7 @@ export function ProtectionSettingsPanel() {
               </label>
             </div>
             <p className="settings-hint">بنظام ٢٤ ساعة، حسب التوقيت المحلي للجهاز. تبدأ الفترة عند ساعة البداية وتنتهي عند ساعة النهاية{values.blockStartHour > values.blockEndHour ? ' في اليوم التالي (عبر منتصف الليل)' : ''}. يجب أن تختلف الساعتان.</p>
-            <p className="settings-hint">هذه المرحلة تحفظ الإعدادات فقط؛ تطبيق الحظر والتهدئة على محاكاة الشراء سيُضاف لاحقًا. لا توجد مدفوعات حقيقية.</p>
+            <p className="settings-hint">أثناء ساعات الحظر تبدأ محاولات الشراء بمهلة تهدئة، تليها أسئلة توعية قبل المتابعة. خارج الفترة تُسجّل المحاكاة مباشرة. لا تتغير المهل القائمة بتعديل الإعدادات، ولا توجد مدفوعات حقيقية.</p>
             {error && <div className="form-message error" role="alert" data-testid="message-settings-error">{error}</div>}
             {success && <div className="form-message success" role="status" data-testid="message-settings-success">تم حفظ إعدادات الحماية. ستبقى محفوظة بعد إعادة تحميل الصفحة.</div>}
             <div className="settings-actions">

@@ -33,7 +33,9 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Shared demo dashboard, virtual card and Arabic purchase history; no real charges.
+- Protection settings define device-local daily hours. Attempts started in that window wait for a server-enforced cooldown, then allow awareness answers and continuation or postponement.
+- Cooldown deadlines and final decisions persist in MongoDB. Editing settings never shortens existing deadlines; postponement ends the attempt without automatic purchase later.
 
 ## User preferences
 
@@ -45,7 +47,8 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- `node --experimental-strip-types --test artifacts/api-server/tests/purchase-protection.test.mjs` checks daily interval and timezone boundaries.
+- `RUN_PURCHASE_API_TESTS=1 node --test artifacts/api-server/tests/purchase-flow.test.mjs` is an opt-in development API check through the shared proxy. It temporarily changes shared settings, waits one real minute, leaves labeled demo attempts in history, and restores settings afterward. Do not run against production or alongside active demo use.
 
 ## Pointers
 

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCreatePurchaseSimulation, useGetDashboard, getGetDashboardQueryKey } from '@workspace/api-client-react';
 import { AlertCircle, ArrowUpLeft, Check, CircleHelp, Clock3, CreditCard, LockKeyhole, ReceiptText, ShieldCheck, Store } from 'lucide-react';
 import { ProtectionSettingsPanel } from '@/components/protection-settings';
+import { PurchaseCooldown } from '@/components/purchase-cooldown';
 
 function formatMoney(amount: number, currency: string) {
   const label = currency === 'KWD' ? 'د.ك' : currency;
@@ -20,7 +21,7 @@ function formatDate(date: string) {
 }
 
 function readableStatus(status: string) {
-  return status === 'simulated' ? 'محاكاة مسجلة' : status;
+  return ({ simulated: 'محاكاة مسجلة', cooling_down: 'بانتظار القرار · تهدئة', postponed: 'تم تأجيل الشراء' } as Record<string, string>)[status] || status;
 }
 
 function readableCardStatus(status: string) {
@@ -37,7 +38,16 @@ export default function HomePage() {
   });
   const createSimulation = useCreatePurchaseSimulation({
     mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() }),
+      onSuccess: (purchase) => {
+        queryClient.setQueryData(getGetDashboardQueryKey(), (previous: import('@workspace/api-client-react').Dashboard | undefined) =>
+          previous ? {
+            ...previous,
+            recentSimulations: [purchase, ...previous.recentSimulations].slice(0, 10),
+            pendingSimulations: purchase.status === 'cooling_down'
+              ? [purchase, ...previous.pendingSimulations] : previous.pendingSimulations,
+          } : previous);
+        return queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+      },
     },
   });
   const [merchantName, setMerchantName] = useState('');
@@ -60,12 +70,14 @@ export default function HomePage() {
       return;
     }
     createSimulation.mutate(
-      { data: { merchantName: trimmedName, amount: parsedAmount, currency: 'KWD' } },
+      { data: { merchantName: trimmedName, amount: parsedAmount, currency: 'KWD', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } },
       {
-        onSuccess: () => {
+        onSuccess: (purchase) => {
           setMerchantName('');
           setAmount('');
-          setSuccessMessage('تم تسجيل المحاكاة. لم يتم خصم أي مبلغ من رصيدك.');
+          setSuccessMessage(purchase.status === 'cooling_down'
+            ? 'حُفظت المحاولة وبدأت مهلة التهدئة. يمكنك تأجيل الشراء الآن أو الانتظار للإجابة عن أسئلة التوعية.'
+            : 'تم تسجيل المحاكاة خارج ساعات الحظر أو والدرع غير مفعّل. لم يتم خصم أي مبلغ من رصيدك.');
         },
         onError: () => setFormError('تعذر تسجيل المحاكاة الآن. تحققي من الاتصال وحاولي مرة أخرى.'),
       },
@@ -133,6 +145,14 @@ export default function HomePage() {
         </section>
 
         <ProtectionSettingsPanel />
+
+        {!!dashboard?.pendingSimulations.length && (
+          <section className="panel settings-panel" aria-label="المحاولات قيد التهدئة">
+            <h2 className="panel-heading">توقفي لحظة قبل الشراء</h2>
+            <p className="settings-hint">محاولات محفوظة للحساب التجريبي المشترك. تغيير الإعدادات لا يلغي مهلة بدأت بالفعل.</p>
+            {dashboard.pendingSimulations.map((purchase) => <PurchaseCooldown key={purchase.id} purchase={purchase} />)}
+          </section>
+        )}
 
         <section className="content-grid">
           <article className="panel form-panel">

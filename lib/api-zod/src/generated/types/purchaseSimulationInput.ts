@@ -19,4 +19,10 @@ export interface PurchaseSimulationInput {
      */
   amount: number;
   currency: PurchaseSimulationInputCurrency;
+  /**
+     * Device IANA timezone; server evaluates the current local hour using its own clock
+     * @minLength 1
+     * @maxLength 100
+     */
+  timeZone: string;
 }

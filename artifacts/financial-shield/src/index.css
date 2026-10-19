@@ -572,6 +572,11 @@ button:disabled { cursor: not-allowed; }
 .settings-hint { font-size:12px; line-height:1.8; color:hsl(var(--muted-foreground)); margin-top:12px; }
 .settings-actions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
 .settings-actions .submit-button { width:auto; padding-inline:22px; }
+.cooldown-card { margin-top:18px; padding:18px; border:1px solid hsl(var(--border)); border-radius:12px; }
+.cooldown-card h3 { font-size:15px; overflow-wrap:anywhere; }
+.cooldown-card p { font-size:12px; line-height:1.9; color:hsl(var(--muted-foreground)); margin-top:10px; }
+.cooldown-clock { font-size:32px; font-variant-numeric:tabular-nums; text-align:center; padding:12px; color:hsl(var(--primary)); }
+.cooldown-card select { width:100%; min-height:45px; padding:8px; background:#fffefa; border:1px solid hsl(var(--input)); border-radius:10px; }
 @media(max-width:760px) {
   .settings-panel { padding:20px; }
   .settings-grid { grid-template-columns:1fr; gap:0; }

@@ -12,6 +12,8 @@ export * from './demoAccount';
 export * from './demoVirtualCard';
 export * from './healthStatus';
 export * from './protectionSettings';
+export * from './purchaseDecisionInput';
+export * from './purchaseDecisionInputAction';
 export * from './purchaseSimulation';
 export * from './purchaseSimulationInput';
 export * from './purchaseSimulationInputCurrency';

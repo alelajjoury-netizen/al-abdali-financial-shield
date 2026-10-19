@@ -11,4 +11,6 @@ export type PurchaseSimulationStatus = typeof PurchaseSimulationStatus[keyof typ
 
 export const PurchaseSimulationStatus = {
   simulated: 'simulated',
+  cooling_down: 'cooling_down',
+  postponed: 'postponed',
 } as const;
