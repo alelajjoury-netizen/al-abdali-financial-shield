@@ -2,6 +2,7 @@ import mongoose, { Schema, type InferSchemaType } from "mongoose";
 import "./VirtualCard.ts";
 import { protectFinancialReferences } from "./financial-references.ts";
 import { protectFinancialAmountUpdates } from "./financial-amount-updates.ts";
+import { rejectFinancialBatchWrites } from "./financial-batch-writes.ts";
 
 function hasAtMostThreeDecimalPlaces(value: number): boolean {
   return Number.isFinite(value) && Math.abs(value * 1000 - Math.round(value * 1000)) < 1e-8;
@@ -51,6 +52,7 @@ protectFinancialAmountUpdates(financialTransactionSchema, ["amount"]);
 financialTransactionSchema.pre(["updateOne", "findOneAndUpdate"], function () {
   this.setOptions({ runValidators: true });
 });
+rejectFinancialBatchWrites(financialTransactionSchema);
 
 export type FinancialTransactionDocument = InferSchemaType<typeof financialTransactionSchema>;
 

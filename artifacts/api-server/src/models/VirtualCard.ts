@@ -1,6 +1,7 @@
 import mongoose, { Schema, type InferSchemaType } from "mongoose";
 import "./Account.ts";
 import { protectFinancialReferences } from "./financial-references.ts";
+import { rejectFinancialBatchWrites } from "./financial-batch-writes.ts";
 
 const virtualCardSchema = new Schema(
   {
@@ -30,6 +31,7 @@ protectFinancialReferences(virtualCardSchema, ["accountId"]);
 virtualCardSchema.pre(["updateOne", "findOneAndUpdate"], function () {
   this.setOptions({ runValidators: true });
 });
+rejectFinancialBatchWrites(virtualCardSchema);
 
 export type VirtualCardDocument = InferSchemaType<typeof virtualCardSchema>;
 

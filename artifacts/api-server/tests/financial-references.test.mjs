@@ -79,11 +79,16 @@ for (const [Model, values, invalid] of [
       if (method === "insertMany") return Model.insertMany([data], options);
       return Model.bulkWrite([{ insertOne: { document: data } }], options);
     }
-    test(`${Model.modelName}.${method}: accepts existing, correctly owned references`, async () => {
+    test(`${Model.modelName}.${method}: ${method === "bulkWrite" ? "batch policy rejects even correctly owned references" : "accepts existing, correctly owned references"}`, async () => {
       // Also prove that string ObjectIds are cast before looking up references.
-      await insert(Object.fromEntries(Object.entries(values()).map(([key, value]) =>
+      const action = () => insert(Object.fromEntries(Object.entries(values()).map(([key, value]) =>
         [key, value instanceof mongoose.Types.ObjectId ? value.toString() : value])));
-      assert.equal(writes.length, 1);
+      if (method === "bulkWrite") {
+        await rejectsReference(action, "bulkWrite");
+      } else {
+        await action();
+        assert.equal(writes.length, 1);
+      }
     });
     for (const [field, patch] of invalid) {
       test(`${Model.modelName}.${method}: rejects ${field}=${String(Object.values(patch)[0])}`, async () => {
@@ -134,9 +139,14 @@ for (const [Model, values, fields] of [
   [FinancialTransactionModel, transaction, ["accountId", "cardId"]],
 ]) {
   for (const method of ["updateOne", "updateMany", "findOneAndUpdate"]) {
-    test(`${Model.modelName}.${method}: non-reference updates remain supported`, async () => {
-      await Model[method]({ _id: missingId }, { $set: { status: Model === VirtualCardModel ? "locked" : "cancelled" } });
-      assert.equal(writes.length, 1);
+    test(`${Model.modelName}.${method}: non-reference updates ${method === "updateMany" ? "are rejected by batch policy" : "remain supported"}`, async () => {
+      const action = () => Model[method]({ _id: missingId }, { $set: { status: Model === VirtualCardModel ? "locked" : "cancelled" } });
+      if (method === "updateMany") {
+        await rejectsReference(action, "updateMany");
+      } else {
+        await action();
+        assert.equal(writes.length, 1);
+      }
     });
     for (const field of fields) {
       test(`${Model.modelName}.${method}: rejects ownership edits and destructive operators on ${field}`, async () => {
@@ -153,10 +163,15 @@ for (const [Model, values, fields] of [
       await rejectsReference(() => Model[method](
         {}, [{ $set: { accountId: missingId } }], { updatePipeline: true }), "accountId");
     });
-    test(`${Model.modelName}.${method}: insert-only upsert validates filter and inserted references`, async () => {
+    test(`${Model.modelName}.${method}: insert-only upsert validates references${method === "updateMany" ? " but remains unsupported" : ""}`, async () => {
       const { accountId: owner, ...rest } = values();
-      await Model[method]({ accountId: owner }, { $setOnInsert: rest }, { upsert: true });
-      assert.equal(writes.length, 1);
+      const action = () => Model[method]({ accountId: owner }, { $setOnInsert: rest }, { upsert: true });
+      if (method === "updateMany") {
+        await rejectsReference(action, "updateMany");
+      } else {
+        await action();
+        assert.equal(writes.length, 1);
+      }
       await rejectsReference(() => Model[method](
         { accountId: missingId }, { $setOnInsert: rest }, { upsert: true }), "accountId");
       if (Model === FinancialTransactionModel) {
